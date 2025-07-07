@@ -10,7 +10,12 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
-    <script src="multiplayer.js"></script>
+    
+    <!-- Core classes -->
+    <script src="src/entities/Building.js"></script>
+    <script src="src/entities/UnitGroup.js"></script>
+    <script src="src/multiplayer/MultiplayerManager.js"></script>
+    <script src="src/core/Game.js"></script>
 </head>
 <body>
     <div class="menu-screen" id="menuScreen">
@@ -143,7 +148,13 @@
         </div>
     </div>
 
-    <script src="game.js"></script>
+    <script>
+        // Démarrer le jeu
+        let game;
+        window.addEventListener('load', () => {
+            game = new Game();
+        });
+    </script>
     
     <script>
         // PWA uniquement si servi via HTTP/HTTPS

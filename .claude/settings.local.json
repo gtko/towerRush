@@ -10,7 +10,8 @@
       "Bash(rg:*)",
       "Bash(git commit:*)",
       "Bash(rm:*)",
-      "Bash(open:*)"
+      "Bash(open:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }
