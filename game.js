@@ -460,6 +460,11 @@ class Game {
         this.localPlayerIndex = 0; // Index du joueur local (0 = joueur 1, 1 = joueur 2, etc.)
         this.networkGameState = null;
         
+        // Web Worker pour le jeu en arrière-plan
+        this.gameWorker = null;
+        this.workerActive = false;
+        this.initializeWorker();
+        
         this.setupCanvas();
         this.loadBackground();
         this.setupEventListeners();
@@ -1549,23 +1554,143 @@ class Game {
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
                 console.log('Onglet redevenu actif - reprise du rendu normal');
+                this.stopWorker();
                 // Forcer une mise à jour immédiate quand on revient
                 if (this.gameStarted) {
                     this.update();
                     this.draw();
                 }
             } else {
-                console.log('Onglet en arrière-plan - mode économie');
+                console.log('Onglet en arrière-plan - démarrage du worker');
+                this.startWorker();
             }
         });
         
         // Gérer le focus/blur de la fenêtre (pour plus de compatibilité)
         window.addEventListener('focus', () => {
+            this.stopWorker();
             if (this.gameStarted) {
                 this.update();
                 this.draw();
             }
         });
+        
+        window.addEventListener('blur', () => {
+            this.startWorker();
+        });
+    }
+    
+    initializeWorker() {
+        if (typeof Worker !== 'undefined') {
+            try {
+                this.gameWorker = new Worker('./game-worker.js');
+                
+                this.gameWorker.onmessage = (e) => {
+                    const { type, data } = e.data;
+                    
+                    switch (type) {
+                        case 'game_update':
+                            // Recevoir les mises à jour du worker
+                            if (data.gameState && this.workerActive) {
+                                this.syncFromWorker(data.gameState);
+                            }
+                            break;
+                            
+                        case 'pong':
+                            console.log('Worker ping OK');
+                            break;
+                            
+                        default:
+                            console.log('Message worker reçu:', type);
+                    }
+                };
+                
+                this.gameWorker.onerror = (error) => {
+                    console.error('Erreur Web Worker:', error);
+                    this.gameWorker = null;
+                };
+                
+                // Test de connexion
+                this.gameWorker.postMessage({ type: 'init' });
+                console.log('Web Worker initialisé');
+                
+            } catch (error) {
+                console.error('Impossible de créer le Web Worker:', error);
+                this.gameWorker = null;
+            }
+        } else {
+            console.log('Web Workers non supportés');
+        }
+    }
+    
+    startWorker() {
+        if (this.gameWorker && this.gameStarted && !this.workerActive) {
+            console.log('Démarrage du Web Worker');
+            this.workerActive = true;
+            
+            // Envoyer l'état actuel au worker
+            const gameState = this.getSimplifiedGameState();
+            this.gameWorker.postMessage({
+                type: 'start',
+                data: { gameState }
+            });
+        }
+    }
+    
+    stopWorker() {
+        if (this.gameWorker && this.workerActive) {
+            console.log('Arrêt du Web Worker');
+            this.workerActive = false;
+            this.gameWorker.postMessage({ type: 'stop' });
+        }
+    }
+    
+    getSimplifiedGameState() {
+        return {
+            buildings: this.buildings.map(b => ({
+                x: b.x,
+                y: b.y,
+                owner: b.owner,
+                units: b.units,
+                maxUnits: b.maxUnits,
+                lastProduction: b.lastProduction,
+                buildingType: b.getBuildingType()
+            })),
+            unitGroups: this.unitGroups.map(g => ({
+                x: g.x,
+                y: g.y,
+                target: g.target,
+                units: g.units,
+                owner: g.owner,
+                speed: g.speed
+            }))
+        };
+    }
+    
+    syncFromWorker(workerState) {
+        // Synchroniser l'état depuis le worker
+        if (workerState.buildings && workerState.buildings.length === this.buildings.length) {
+            for (let i = 0; i < this.buildings.length; i++) {
+                this.buildings[i].units = workerState.buildings[i].units;
+                this.buildings[i].lastProduction = workerState.buildings[i].lastProduction;
+            }
+        }
+        
+        // Mettre à jour l'UI si visible
+        if (document.visibilityState === 'visible') {
+            this.updateBuildingCounts();
+        }
+    }
+    
+    updateBuildingCounts() {
+        const playerBuildings = this.buildings.filter(b => b.owner === 'player').length;
+        const enemyBuildings = this.buildings.filter(b => b.owner !== 'player' && b.owner !== 'neutral').length;
+        
+        const playerBuildingsEl = document.getElementById('playerBuildings');
+        const enemyBuildingsEl = document.getElementById('enemyBuildings');
+        
+        if (playerBuildingsEl) playerBuildingsEl.textContent = playerBuildings;
+        if (enemyBuildingsEl) enemyBuildingsEl.textContent = enemyBuildings;
     }
     
     initAudio() {

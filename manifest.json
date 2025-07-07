@@ -1,0 +1,19 @@
+{
+  "name": "Tower Rush",
+  "short_name": "TowerRush",
+  "description": "Jeu de stratégie en temps réel médiéval",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#2c3e2d",
+  "theme_color": "#FFD700",
+  "orientation": "landscape-primary",
+  "icons": [
+    {
+      "src": "./assets/Buildings/Blue Buildings/Castle.png",
+      "sizes": "64x64",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["games", "strategy"],
+  "lang": "fr"
+}

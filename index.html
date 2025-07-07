@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Rush</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FFD700">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
     <script src="multiplayer.js"></script>
 </head>
@@ -140,5 +144,41 @@
     </div>
 
     <script src="game.js"></script>
+    
+    <script>
+        // Enregistrement du Service Worker pour PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker enregistré:', registration.scope);
+                        
+                        // Envoyer un signal keep-alive périodique
+                        setInterval(() => {
+                            if (registration.active) {
+                                registration.active.postMessage({
+                                    type: 'KEEP_ALIVE'
+                                });
+                            }
+                        }, 30000);
+                    })
+                    .catch(error => {
+                        console.log('Échec enregistrement Service Worker:', error);
+                    });
+            });
+        }
+        
+        // Gérer l'installation de la PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA installable détectée');
+            deferredPrompt = e;
+            // Ici on pourrait afficher un bouton d'installation
+        });
+        
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('PWA installée');
+        });
+    </script>
 </body>
 </html>
