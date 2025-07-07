@@ -807,7 +807,7 @@ class Game {
     shouldAttack(source, target) {
         // Logique d'attaque intelligente
         const attackForce = Math.floor(source.units * this.aiSettings.attackPercentage / 100);
-        const targetDefense = target.units + (target.owner !== 'neutral' ? Math.floor(target.units * 0.2) : 0); // Bonus défensif
+        const targetDefense = target.units + (target.owner !== 'neutral' ? Math.floor(target.units * 0.1) : 0); // Bonus défensif réduit
         
         // En difficulté facile, être plus prudent
         if (this.aiDifficulty === 'easy') {

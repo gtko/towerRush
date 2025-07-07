@@ -687,27 +687,27 @@ class UnitGroup {
     }
     
     calculateDefenderDice(forceRatio) {
-        // Système réaliste de bonus/malus selon le rapport de forces
+        // Système équilibré de bonus/malus selon le rapport de forces
         // forceRatio = attaquants / défenseurs
         
-        if (forceRatio >= 3.0) {
-            // Défenseurs très en infériorité (3:1 ou plus) - Position désespérée
+        if (forceRatio >= 2.5) {
+            // Défenseurs très en infériorité (2.5:1 ou plus) - Position désespérée
             return 1; // Seulement 1 dé (moral brisé, encerclés)
-        } else if (forceRatio >= 2.0) {
-            // Défenseurs en infériorité (2:1 à 3:1) - Difficile mais tenable
+        } else if (forceRatio >= 1.8) {
+            // Défenseurs en infériorité (1.8:1 à 2.5:1) - Difficile mais tenable
             return 2; // 2 dés (position difficile)
-        } else if (forceRatio >= 1.5) {
-            // Légère infériorité (1.5:1 à 2:1) - Combat standard
-            return 3; // 3 dés (défense normale)
-        } else if (forceRatio >= 0.75) {
-            // Forces équilibrées (0.75:1 à 1.5:1) - Position forte
-            return 4; // 4 dés (bonne position défensive)
-        } else if (forceRatio >= 0.5) {
-            // Défenseurs en supériorité (0.5:1 à 0.75:1) - Avantage tactique
-            return 5; // 5 dés (excellent moral, position dominante)
+        } else if (forceRatio >= 1.2) {
+            // Légère infériorité (1.2:1 à 1.8:1) - Combat standard
+            return 2; // 2 dés (défense normale - réduit)
+        } else if (forceRatio >= 0.8) {
+            // Forces équilibrées (0.8:1 à 1.2:1) - Position forte
+            return 3; // 3 dés (bonne position défensive - réduit)
+        } else if (forceRatio >= 0.6) {
+            // Défenseurs en supériorité (0.6:1 à 0.8:1) - Avantage tactique
+            return 3; // 3 dés (excellent moral - réduit)
         } else {
-            // Défenseurs en grande supériorité (moins de 0.5:1) - Forteresse imprenable
-            return 6; // 6 dés maximum (moral au plus haut, tactiques parfaites)
+            // Défenseurs en grande supériorité (moins de 0.6:1) - Forteresse bien défendue
+            return 4; // 4 dés maximum (réduit de 6 à 4)
         }
     }
     
