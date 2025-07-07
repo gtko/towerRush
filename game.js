@@ -465,6 +465,7 @@ class Game {
         this.setupEventListeners();
         this.setupMenuListeners();
         this.setupAudioControls();
+        this.setupVisibilityHandlers();
         this.initializeMultiplayer();
     }
     
@@ -1052,12 +1053,21 @@ class Game {
         // Synchronisation multijoueur pour l'hôte (limitée pour les performances)
         if (this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost) {
             const currentState = this.getGameStateChecksum();
+            const now = Date.now();
+            
             if (previousState !== currentState) {
                 // L'état a changé, diffuser aux clients avec throttling
-                const now = Date.now();
                 if (!this.lastBroadcast || now - this.lastBroadcast > 100) { // Max 10 fois par seconde
                     this.multiplayerManager.broadcastGameState();
                     this.lastBroadcast = now;
+                }
+            }
+            
+            // Synchronisation forcée périodique en arrière-plan
+            if (document.visibilityState !== 'visible') {
+                if (!this.lastBackgroundSync || now - this.lastBackgroundSync > 1000) { // Chaque seconde en arrière-plan
+                    this.multiplayerManager.broadcastGameState();
+                    this.lastBackgroundSync = now;
                 }
             }
         }
@@ -1519,7 +1529,43 @@ class Game {
             this.update();
             this.draw();
         }
-        requestAnimationFrame(() => this.gameLoop());
+        
+        // Utiliser requestAnimationFrame si l'onglet est actif, sinon setInterval
+        if (document.visibilityState === 'visible') {
+            requestAnimationFrame(() => this.gameLoop());
+        } else {
+            // Mode arrière-plan : continuer la logique du jeu mais pas le rendu
+            setTimeout(() => {
+                if (this.gameStarted) {
+                    this.update(); // Continuer la logique même en arrière-plan
+                }
+                this.gameLoop();
+            }, 1000 / 30); // 30 FPS en arrière-plan
+        }
+    }
+    
+    setupVisibilityHandlers() {
+        // Gérer les changements de visibilité de l'onglet
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                console.log('Onglet redevenu actif - reprise du rendu normal');
+                // Forcer une mise à jour immédiate quand on revient
+                if (this.gameStarted) {
+                    this.update();
+                    this.draw();
+                }
+            } else {
+                console.log('Onglet en arrière-plan - mode économie');
+            }
+        });
+        
+        // Gérer le focus/blur de la fenêtre (pour plus de compatibilité)
+        window.addEventListener('focus', () => {
+            if (this.gameStarted) {
+                this.update();
+                this.draw();
+            }
+        });
     }
     
     initAudio() {
