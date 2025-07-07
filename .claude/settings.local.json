@@ -11,7 +11,11 @@
       "Bash(git commit:*)",
       "Bash(rm:*)",
       "Bash(open:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(git rm:*)",
+      "Bash(cd:*)",
+      "Bash(npx acorn:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

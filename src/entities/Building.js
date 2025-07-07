@@ -81,9 +81,8 @@ class Building {
         }
     }
 
-    update() {
-        // Vérifier si le bâtiment est en état de siège
-        const isUnderSiege = this.checkIfUnderSiege();
+    update(isUnderSiege = false) {
+        // Le paramètre isUnderSiege est maintenant passé depuis Game.js
         
         if (this.owner !== 'neutral' && this.units < this.maxUnits && !isUnderSiege) {
             const now = Date.now();
@@ -99,11 +98,8 @@ class Building {
     
     checkIfUnderSiege() {
         // Un bâtiment est en siège s'il y a un combat en cours contre lui
-        return game.unitGroups.some(group => 
-            group.isFighting && 
-            group.target === this && 
-            group.owner !== this.owner
-        );
+        // Cette méthode sera appelée depuis Game.js avec le contexte approprié
+        return false; // Par défaut, pas de siège
     }
 
     draw(ctx) {
@@ -205,10 +201,10 @@ class Building {
             ctx.restore();
         }
         
-        // Afficher le type de bâtiment (debug)
-        ctx.fillStyle = 'rgba(255, 255, 0, 0.7)';
-        ctx.font = '10px Arial';
-        ctx.fillText(buildingType, this.x, this.y - 60);
+        // Afficher le type de bâtiment (debug) - DISABLED
+        // ctx.fillStyle = 'rgba(255, 255, 0, 0.7)';
+        // ctx.font = '10px Arial';
+        // ctx.fillText(buildingType, this.x, this.y - 60);
     }
 
     isPointInside(x, y) {
@@ -216,13 +212,16 @@ class Building {
         return distance <= this.radius;
     }
 
-    sendUnits(target, percentage) {
+    sendUnits(target, percentage, gameInstance) {
         if (this.owner === 'neutral' || this.units === 0) return;
         
         const unitsToSend = Math.floor(this.units * (percentage / 100));
         if (unitsToSend > 0) {
             this.units -= unitsToSend;
-            game.addUnitGroup(this, target, unitsToSend);
+            // gameInstance sera passé depuis Game.js
+            if (gameInstance && gameInstance.addUnitGroup) {
+                gameInstance.addUnitGroup(this, target, unitsToSend);
+            }
         }
     }
 }

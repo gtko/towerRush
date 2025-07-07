@@ -191,7 +191,7 @@ class UnitGroup {
         }
     }
 
-    update() {
+    update(gameInstance) {
         const now = Date.now();
         const deltaTime = (now - this.lastUpdate) / 1000;
         this.lastUpdate = now;
@@ -207,7 +207,7 @@ class UnitGroup {
             this.progress = 1;
             
             // Vérifier s'il y a déjà un combat en cours sur ce bâtiment
-            const existingCombat = game.unitGroups.find(group => 
+            const existingCombat = gameInstance.unitGroups.find(group => 
                 group !== this && 
                 group.isFighting && 
                 group.target === this.target
@@ -218,7 +218,7 @@ class UnitGroup {
                 if (existingCombat && existingCombat.owner !== this.owner) {
                     // Il y a un combat en cours contre un ennemi
                     // Les renforts rentrent dans la ville pour défendre
-                    this.enterCityAsReinforcement();
+                    this.enterCityAsReinforcement(gameInstance);
                     return false; // Supprimer ce groupe
                 } else {
                     // Pas de combat, renforcement normal
@@ -253,7 +253,7 @@ class UnitGroup {
         
         // Gérer l'attente d'un combat
         if (this.waitingForCombat) {
-            const existingCombat = game.unitGroups.find(group => 
+            const existingCombat = gameInstance.unitGroups.find(group => 
                 group !== this && 
                 group.isFighting && 
                 group.target === this.target
@@ -279,7 +279,7 @@ class UnitGroup {
             const fightElapsed = now - this.fightStartTime;
             
             // Gérer les renforts qui arrivent pendant le combat
-            this.checkForReinforcements();
+            this.checkForReinforcements(gameInstance);
             
             // Vérifier si le combat est terminé par KO ou par temps
             if (this.combatResult || fightElapsed >= this.fightDuration) {
@@ -288,7 +288,7 @@ class UnitGroup {
                 this.attack();
                 
                 // Déclencher les combats en attente
-                this.triggerWaitingCombats();
+                this.triggerWaitingCombats(gameInstance);
                 
                 return false; // Supprimer ce groupe
             } else {
@@ -411,7 +411,7 @@ class UnitGroup {
         }
     }
     
-    enterCityAsReinforcement() {
+    enterCityAsReinforcement(gameInstance) {
         // Les unités rentrent dans la ville pour défendre
         this.target.units += this.units;
         if (this.target.units > this.target.maxUnits) {
@@ -419,10 +419,10 @@ class UnitGroup {
         }
         
         // Créer un effet visuel d'entrée dans la ville
-        this.createCityEntryEffect();
+        this.createCityEntryEffect(gameInstance);
         
         // Notifier le combat en cours que des renforts sont arrivés
-        const existingCombat = game.unitGroups.find(group => 
+        const existingCombat = gameInstance.unitGroups.find(group => 
             group.isFighting && 
             group.target === this.target
         );
@@ -444,13 +444,13 @@ class UnitGroup {
         }
     }
     
-    createCityEntryEffect() {
+    createCityEntryEffect(gameInstance) {
         // Effet visuel des unités qui rentrent dans la ville
-        if (!game.cityEntryEffects) {
-            game.cityEntryEffects = [];
+        if (!gameInstance.cityEntryEffects) {
+            gameInstance.cityEntryEffects = [];
         }
         
-        game.cityEntryEffects.push({
+        gameInstance.cityEntryEffects.push({
             x: this.x,
             y: this.y,
             targetX: this.target.x,
@@ -496,13 +496,13 @@ class UnitGroup {
         this.positionAroundBuilding();
     }
     
-    checkForReinforcements() {
+    checkForReinforcements(gameInstance) {
         const now = Date.now();
         if (!this.lastReinforcementCheck || now - this.lastReinforcementCheck > 100) {
             this.lastReinforcementCheck = now;
             
             // Chercher des alliés qui attendent pour rejoindre le combat
-            const waitingAllies = game.unitGroups.filter(group => 
+            const waitingAllies = gameInstance.unitGroups.filter(group => 
                 group !== this && 
                 group.waitingForCombat && 
                 group.target === this.target &&
@@ -517,9 +517,9 @@ class UnitGroup {
         }
     }
     
-    triggerWaitingCombats() {
+    triggerWaitingCombats(gameInstance) {
         // Déclencher le prochain combat en attente
-        const nextCombat = game.unitGroups.find(group => 
+        const nextCombat = gameInstance.unitGroups.find(group => 
             group.waitingForCombat && 
             group.target === this.target
         );
@@ -621,14 +621,15 @@ class UnitGroup {
     updateCombatDice() {
         const now = Date.now();
         if (now - this.combatDice.lastRollTime > this.combatDice.rollInterval) {
-            // Calculer le rapport de forces pour les bonus/malus
-            const forceRatio = this.units / this.target.units;
-            const defenderDiceCount = this.calculateDefenderDice(forceRatio);
+            // Les attaquants lancent toujours 2 dés et prennent le meilleur
+            const attackerRoll1 = Math.floor(Math.random() * 6) + 1;
+            const attackerRoll2 = Math.floor(Math.random() * 6) + 1;
+            const bestAttackerRoll = Math.max(attackerRoll1, attackerRoll2);
             
-            // Lancer les dés pour ce round
-            const attackerRoll = Math.floor(Math.random() * 6) + 1; // 1-6
+            // Calculer le nombre de dés pour les défenseurs (1-3 selon le nombre de défenseurs)
+            const defenderDiceCount = this.calculateDefenderDice();
             
-            // Les défenseurs lancent plusieurs dés selon leur situation
+            // Les défenseurs lancent leur(s) dé(s) et prennent le meilleur
             let bestDefenderRoll = 0;
             const defenderRolls = [];
             for (let i = 0; i < defenderDiceCount; i++) {
@@ -637,14 +638,15 @@ class UnitGroup {
                 bestDefenderRoll = Math.max(bestDefenderRoll, roll);
             }
             
-            this.combatDice.attackerRolls.push(attackerRoll);
+            this.combatDice.attackerRolls.push(bestAttackerRoll);
             this.combatDice.defenderRolls.push(bestDefenderRoll);
             
             // Stocker le nombre de dés pour l'affichage
+            this.combatDice.currentAttackerDiceCount = 2;
             this.combatDice.currentDefenderDiceCount = defenderDiceCount;
             
             // Vérifier qui gagne ce round
-            if (attackerRoll > bestDefenderRoll) {
+            if (bestAttackerRoll > bestDefenderRoll) {
                 // L'attaquant gagne, un défenseur meurt
                 if (this.target.units > 0) {
                     this.target.units--;
@@ -686,28 +688,22 @@ class UnitGroup {
         }
     }
     
-    calculateDefenderDice(forceRatio) {
-        // Système équilibré de bonus/malus selon le rapport de forces
-        // forceRatio = attaquants / défenseurs
+    calculateDefenderDice() {
+        // Système simplifié : les défenseurs ont toujours 1 dé de base
+        // +1 dé s'ils ont un avantage numérique significatif
+        const defenderCount = this.target.units;
+        const attackerCount = this.units;
+        const ratio = defenderCount / attackerCount;
         
-        if (forceRatio >= 2.5) {
-            // Défenseurs très en infériorité (2.5:1 ou plus) - Position désespérée
-            return 1; // Seulement 1 dé (moral brisé, encerclés)
-        } else if (forceRatio >= 1.8) {
-            // Défenseurs en infériorité (1.8:1 à 2.5:1) - Difficile mais tenable
-            return 2; // 2 dés (position difficile)
-        } else if (forceRatio >= 1.2) {
-            // Légère infériorité (1.2:1 à 1.8:1) - Combat standard
-            return 2; // 2 dés (défense normale - réduit)
-        } else if (forceRatio >= 0.8) {
-            // Forces équilibrées (0.8:1 à 1.2:1) - Position forte
-            return 3; // 3 dés (bonne position défensive - réduit)
-        } else if (forceRatio >= 0.6) {
-            // Défenseurs en supériorité (0.6:1 à 0.8:1) - Avantage tactique
-            return 3; // 3 dés (excellent moral - réduit)
+        if (ratio >= 2.0) {
+            // Défenseurs en grande supériorité numérique (2:1 ou plus)
+            return 3; // Maximum 3 dés
+        } else if (ratio >= 1.0) {
+            // Forces équivalentes ou légère supériorité défensive
+            return 2; // 2 dés
         } else {
-            // Défenseurs en grande supériorité (moins de 0.6:1) - Forteresse bien défendue
-            return 4; // 4 dés maximum (réduit de 6 à 4)
+            // Défenseurs en infériorité numérique
+            return 1; // 1 seul dé
         }
     }
     
@@ -1204,7 +1200,7 @@ class UnitGroup {
             
             ctx.font = 'bold 10px Arial';
             ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.fillText('1D6', attackerX, panelY + 13);
+            ctx.fillText('2D6', attackerX, panelY + 13);
             
             // VS au centre
             ctx.font = 'bold 18px Arial';

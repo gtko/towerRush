@@ -22,6 +22,12 @@ class MultiplayerManager {
     }
     
     initializePeer() {
+        // Vérifier que PeerJS est chargé
+        if (typeof Peer === 'undefined') {
+            console.error('PeerJS not loaded! Make sure peerjs is included before this script.');
+            return;
+        }
+        
         // Créer un peer avec configuration améliorée
         this.peer = new Peer({
             debug: 2,
@@ -75,51 +81,8 @@ class MultiplayerManager {
     }
     
     setupEventListeners() {
-        const gameModeSelect = document.getElementById('gameMode');
-        const multiplayerControls = document.getElementById('multiplayerControls');
-        const roomCodeInput = document.getElementById('roomCode');
-        const copyCodeBtn = document.getElementById('copyCodeBtn');
-        
-        gameModeSelect.addEventListener('change', (e) => {
-            const mode = e.target.value;
-            if (mode === 'local') {
-                multiplayerControls.style.display = 'none';
-            } else {
-                multiplayerControls.style.display = 'block';
-                
-                if (mode === 'host') {
-                    this.setupHostMode();
-                } else if (mode === 'join') {
-                    this.setupJoinMode();
-                }
-            }
-        });
-        
-        copyCodeBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(this.roomCode).then(() => {
-                copyCodeBtn.textContent = 'Copié!';
-                setTimeout(() => {
-                    copyCodeBtn.textContent = 'Copier';
-                }, 2000);
-            }).catch(() => {
-                // Fallback pour les anciens navigateurs
-                const textArea = document.createElement('textarea');
-                textArea.value = this.roomCode;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                copyCodeBtn.textContent = 'Copié!';
-                setTimeout(() => {
-                    copyCodeBtn.textContent = 'Copier';
-                }, 2000);
-            });
-        });
-        
-        roomCodeInput.addEventListener('input', (e) => {
-            // Ne pas filtrer les caractères - les IDs PeerJS contiennent des tirets
-            e.target.value = e.target.value.trim();
-        });
+        // Les event listeners pour le menu sont maintenant gérés dans Game.js
+        // Cette méthode reste vide pour l'instant
     }
     
     setupHostMode() {
@@ -140,14 +103,32 @@ class MultiplayerManager {
     
     displayHostCode() {
         const roomCodeInput = document.getElementById('roomCode');
-        const copyCodeBtn = document.getElementById('copyCodeBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
         
-        // Afficher l'ID complet pour éviter les problèmes
-        roomCodeInput.value = this.roomCode;
-        roomCodeInput.readOnly = true;
-        copyCodeBtn.style.display = 'inline-block';
+        if (roomCodeInput) {
+            // Afficher l'ID complet pour éviter les problèmes
+            roomCodeInput.value = this.roomCode;
+            roomCodeInput.readOnly = true;
+        }
         
-        this.updateConnectionStatus('En attente de joueurs...');
+        // Copier automatiquement dans le presse-papier
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(this.roomCode).then(() => {
+                console.log('Code copié dans le presse-papier');
+                if (connectionStatus) {
+                    connectionStatus.innerHTML = `<span style="color: var(--success)">✓ Code copié: ${this.roomCode}</span>`;
+                    setTimeout(() => {
+                        this.updateConnectionStatus('En attente de joueurs...');
+                    }, 3000);
+                }
+            }).catch(err => {
+                console.error('Erreur lors de la copie:', err);
+                this.updateConnectionStatus(`Code: ${this.roomCode}`);
+            });
+        } else {
+            this.updateConnectionStatus(`Code: ${this.roomCode}`);
+        }
+        
         console.log('Mode hôte activé avec le code:', this.roomCode);
     }
     
@@ -155,12 +136,12 @@ class MultiplayerManager {
         this.isHost = false;
         
         const roomCodeInput = document.getElementById('roomCode');
-        const copyCodeBtn = document.getElementById('copyCodeBtn');
         
-        roomCodeInput.value = '';
-        roomCodeInput.readOnly = false;
-        roomCodeInput.placeholder = 'Entrez le code...';
-        copyCodeBtn.style.display = 'none';
+        if (roomCodeInput) {
+            roomCodeInput.value = '';
+            roomCodeInput.readOnly = false;
+            roomCodeInput.placeholder = 'Entrez le code...';
+        }
         
         this.updateConnectionStatus('Entrez le code de la partie');
     }
@@ -474,10 +455,11 @@ class MultiplayerManager {
     }
     
     updateConnectionStatus(status) {
-        const statusText = document.getElementById('statusText');
-        if (statusText) {
-            statusText.textContent = status;
+        const connectionStatus = document.getElementById('connectionStatus');
+        if (connectionStatus) {
+            connectionStatus.textContent = status;
         }
+        console.log('Connection status:', status);
     }
     
     updatePlayerCount() {
@@ -535,6 +517,14 @@ class MultiplayerManager {
             });
         }
         
+        // Code de salle cliquable pour copier
+        const roomCodeBadge = document.querySelector('.room-code-badge');
+        if (roomCodeBadge) {
+            roomCodeBadge.addEventListener('click', () => {
+                this.copyRoomCode();
+            });
+        }
+        
         // Chat
         const chatInput = document.getElementById('chatInput');
         const sendChatBtn = document.getElementById('sendChatBtn');
@@ -584,6 +574,50 @@ class MultiplayerManager {
         
         // Mettre à jour la liste des joueurs
         this.updatePlayersList();
+    }
+    
+    copyRoomCode() {
+        const roomCodeBadge = document.querySelector('.room-code-badge');
+        
+        if (navigator.clipboard && this.roomCode) {
+            navigator.clipboard.writeText(this.roomCode).then(() => {
+                // Feedback visuel
+                roomCodeBadge.classList.add('copied');
+                
+                // Retirer la classe après 2 secondes
+                setTimeout(() => {
+                    roomCodeBadge.classList.remove('copied');
+                }, 2000);
+                
+                // Message dans le chat
+                this.addSystemMessage('Code de la salle copié !');
+            }).catch(err => {
+                console.error('Échec de la copie :', err);
+                this.addSystemMessage('Échec de la copie du code');
+            });
+        } else {
+            // Fallback pour les navigateurs qui ne supportent pas l'API Clipboard
+            const textArea = document.createElement('textarea');
+            textArea.value = this.roomCode;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            
+            try {
+                document.execCommand('copy');
+                roomCodeBadge.classList.add('copied');
+                setTimeout(() => {
+                    roomCodeBadge.classList.remove('copied');
+                }, 2000);
+                this.addSystemMessage('Code de la salle copié !');
+            } catch (err) {
+                console.error('Échec de la copie :', err);
+                this.addSystemMessage('Échec de la copie du code');
+            }
+            
+            document.body.removeChild(textArea);
+        }
     }
     
     leaveLobby() {
@@ -809,4 +843,10 @@ class MultiplayerManager {
         
         this.addSystemMessage('La partie commence!');
     }
+}
+
+// Rendre la classe disponible globalement
+if (typeof window !== 'undefined') {
+    window.MultiplayerManager = MultiplayerManager;
+    console.log('MultiplayerManager class registered globally');
 }

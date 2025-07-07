@@ -40,7 +40,11 @@ class Game {
         this.setupMenuListeners();
         this.setupAudioControls();
         this.setupVisibilityHandlers();
-        this.initializeMultiplayer();
+        
+        // Initialiser le multijoueur après un délai pour s'assurer que tout est chargé
+        setTimeout(() => {
+            this.initializeMultiplayer();
+        }, 500);
     }
     
     getPlayerOwner(index) {
@@ -50,28 +54,34 @@ class Game {
     
     setupCanvas() {
         // Définir la taille du canvas en fonction de la fenêtre
-        const containerWidth = this.canvas.parentElement.clientWidth - 20; // -20 pour le padding
-        const containerHeight = this.canvas.parentElement.clientHeight - 20;
+        const container = this.canvas.parentElement;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
         
-        // Ratio 16:9 ou selon l'écran
-        const aspectRatio = 16 / 10;
-        let canvasWidth = containerWidth;
-        let canvasHeight = canvasWidth / aspectRatio;
+        // Ratio fixe pour éviter les déformations
+        const aspectRatio = 16 / 9;
+        let canvasWidth, canvasHeight;
         
-        // Ajuster si la hauteur dépasse
-        if (canvasHeight > containerHeight) {
+        // Calculer la taille optimale en gardant le ratio
+        if (containerWidth / containerHeight > aspectRatio) {
+            // Container plus large que le ratio
             canvasHeight = containerHeight;
             canvasWidth = canvasHeight * aspectRatio;
+        } else {
+            // Container plus haut que le ratio
+            canvasWidth = containerWidth;
+            canvasHeight = canvasWidth / aspectRatio;
         }
         
-        // Minimum 1600x1000 pour plus d'espace
-        canvasWidth = Math.max(canvasWidth, 1600);
-        canvasHeight = Math.max(canvasHeight, 1000);
+        // Taille fixe du canvas pour éviter les déformations
+        this.canvas.width = 1920;
+        this.canvas.height = 1080;
         
-        this.canvas.width = canvasWidth;
-        this.canvas.height = canvasHeight;
+        // Ajuster le style CSS pour l'affichage
+        this.canvas.style.width = `${canvasWidth}px`;
+        this.canvas.style.height = `${canvasHeight}px`;
         
-        console.log(`Canvas size: ${canvasWidth}x${canvasHeight}`);
+        console.log(`Canvas resolution: 1920x1080, Display size: ${Math.round(canvasWidth)}x${Math.round(canvasHeight)}`);
     }
     
     handleResize() {
@@ -496,7 +506,7 @@ class Game {
                             percentage: this.sendPercentage
                         });
                     } else {
-                        building.sendUnits(this.targetBuilding, this.sendPercentage);
+                        building.sendUnits(this.targetBuilding, this.sendPercentage, this);
                     }
                 });
                 
@@ -510,6 +520,39 @@ class Game {
             this.restart();
         });
 
+        // Bouton Menu dans l'écran de fin de partie
+        const menuBtn = document.getElementById('menuBtn');
+        if (menuBtn) {
+            menuBtn.addEventListener('click', () => {
+                document.getElementById('gameOver').style.display = 'none';
+                document.getElementById('gameContainer').style.display = 'none';
+                document.getElementById('menuScreen').style.display = 'flex';
+                this.stopBackgroundMode();
+            });
+        }
+
+        // Gérer le bouton d'aide
+        const helpBtn = document.getElementById('helpBtn');
+        const helpPanel = document.getElementById('helpPanel');
+        const helpClose = document.getElementById('helpClose');
+        
+        if (helpBtn && helpPanel && helpClose) {
+            helpBtn.addEventListener('click', () => {
+                helpPanel.style.display = 'flex';
+            });
+            
+            helpClose.addEventListener('click', () => {
+                helpPanel.style.display = 'none';
+            });
+            
+            // Fermer avec Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && helpPanel.style.display === 'flex') {
+                    helpPanel.style.display = 'none';
+                }
+            });
+        }
+        
         // Redimensionnement dynamique
         window.addEventListener('resize', () => {
             this.handleResize();
@@ -635,13 +678,21 @@ class Game {
             this.getGameStateChecksum() : null;
         
         // Mettre à jour les bâtiments
-        this.buildings.forEach(building => building.update());
+        this.buildings.forEach(building => {
+            // Vérifier si le bâtiment est sous siège
+            const isUnderSiege = this.unitGroups.some(group => 
+                group.isFighting && 
+                group.target === building && 
+                group.owner !== building.owner
+            );
+            building.update(isUnderSiege);
+        });
         
         // Mettre à jour les groupes d'unités
         this.unitGroups = this.unitGroups.filter(group => {
             // Supprimer les groupes marqués pour suppression
             if (group.toRemove) return false;
-            return group.update();
+            return group.update(this);
         });
         
         // Vérifier les conditions de victoire
@@ -826,7 +877,7 @@ class Game {
         if (Math.random() < this.aiSettings.groupAttackChance) {
             this.executeGroupAttack(faction, target);
         } else {
-            source.sendUnits(target, this.aiSettings.attackPercentage);
+            source.sendUnits(target, this.aiSettings.attackPercentage, this);
         }
         
         this.lastAIActions[faction] = currentTime;
@@ -842,7 +893,7 @@ class Game {
         const attackers = factionBuildings.slice(0, Math.min(3, factionBuildings.length)); // Max 3 attaquants
         attackers.forEach(building => {
             if (Math.random() < 0.7) { // 70% chance que chaque bâtiment participe
-                building.sendUnits(mainTarget, this.aiSettings.attackPercentage);
+                building.sendUnits(mainTarget, this.aiSettings.attackPercentage, this);
             }
         });
     }
@@ -862,6 +913,21 @@ class Game {
         this.gameOver = true;
         document.getElementById('gameOverTitle').textContent = title;
         document.getElementById('gameOverMessage').textContent = message;
+        
+        // Mettre à jour l'icône et la classe selon le résultat
+        const gameOverContent = document.querySelector('.game-over-content');
+        const gameOverIcon = document.getElementById('gameOverIcon');
+        
+        if (title.includes('Victoire')) {
+            gameOverContent.classList.add('victory');
+            gameOverContent.classList.remove('defeat');
+            gameOverIcon.textContent = '🏆';
+        } else {
+            gameOverContent.classList.add('defeat');
+            gameOverContent.classList.remove('victory');
+            gameOverIcon.textContent = '💀';
+        }
+        
         document.getElementById('gameOver').style.display = 'flex';
     }
 
@@ -883,6 +949,10 @@ class Game {
         console.log(`Démarrage du jeu avec ${this.playerCount} joueurs`);
         document.getElementById('menuScreen').style.display = 'none';
         document.getElementById('gameContainer').style.display = 'flex';
+        
+        // Recalculer les dimensions du canvas après l'affichage du container
+        this.handleResize();
+        
         this.initBuildings();
         this.gameLoop();
     }
@@ -892,73 +962,154 @@ class Game {
         this.gameOver = false;
         document.getElementById('gameContainer').style.display = 'none';
         document.getElementById('menuScreen').style.display = 'flex';
+        
+        // Réinitialiser le code de salle
+        const roomCodeInput = document.getElementById('roomCode');
+        if (roomCodeInput) {
+            roomCodeInput.value = '';
+        }
+        const connectionStatus = document.getElementById('connectionStatus');
+        if (connectionStatus) {
+            connectionStatus.textContent = '';
+        }
+        
+        // Réinitialiser le jeu
         this.buildings = [];
         this.unitGroups = [];
         this.selectedBuildings = [];
         this.targetBuilding = null;
+        
+        // Arrêter la musique
+        this.stopBackgroundMusic();
     }
     
     setupMenuListeners() {
-        const startBtn = document.getElementById('startGameBtn');
         const menuScreen = document.getElementById('menuScreen');
         const gameContainer = document.getElementById('gameContainer');
-        const playerCountSelect = document.getElementById('playerCount');
-        const difficultySelect = document.getElementById('aiDifficulty');
-        const gameModeSelect = document.getElementById('gameMode');
         const roomCodeInput = document.getElementById('roomCode');
         
-        startBtn.addEventListener('click', () => {
-            const gameMode = gameModeSelect.value;
-            const playerCount = parseInt(playerCountSelect.value);
-            this.aiDifficulty = difficultySelect.value;
+        // Variables pour stocker les paramètres
+        let selectedPlayers = 2;
+        let selectedDifficulty = 'medium';
+        
+        // Gestion des boutons d'options
+        const playerBtns = document.querySelectorAll('[data-players]');
+        const difficultyBtns = document.querySelectorAll('[data-difficulty]');
+        
+        playerBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                playerBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedPlayers = parseInt(btn.dataset.players);
+            });
+        });
+        
+        difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                difficultyBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedDifficulty = btn.dataset.difficulty;
+            });
+        });
+        
+        // Bouton Jouer rapide
+        const quickPlayBtn = document.getElementById('quickPlayBtn');
+        quickPlayBtn.addEventListener('click', () => {
+            this.aiDifficulty = selectedDifficulty;
             this.aiSettings = this.getAISettings();
+            this.isMultiplayer = false;
             
-            if (gameMode === 'local') {
-                // Mode local classique
-                this.isMultiplayer = false;
-                
-                // Masquer le menu et afficher le jeu
+            // Afficher l'écran de chargement
+            this.showGameLoadingScreen(() => {
                 menuScreen.style.display = 'none';
                 gameContainer.style.display = 'flex';
-                
-                // Démarrer le jeu avec le nombre de joueurs sélectionné
-                this.startGame(playerCount);
-                
-                // Démarrer la musique de fond
+                this.startGame(selectedPlayers);
                 setTimeout(() => this.startBackgroundMusic(), 500);
-                
-            } else if (gameMode === 'host') {
-                // Créer une partie multijoueur - aller d'abord au lobby
-                this.isMultiplayer = true;
+            });
+        });
+        
+        // Gestion du multijoueur simplifiée
+        const hostGameBtn = document.getElementById('hostGameBtn');
+        const joinBtn = document.getElementById('joinBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        
+        hostGameBtn.addEventListener('click', () => {
+            this.isMultiplayer = true;
+            if (this.multiplayerManager) {
                 this.multiplayerManager.isHost = true;
                 this.multiplayerManager.setupHostMode();
-                
-                // Le lobby sera affiché automatiquement après l'initialisation
-                
-            } else if (gameMode === 'join') {
-                // Rejoindre une partie multijoueur - aller au lobby
-                const roomCode = roomCodeInput.value.trim();
-                if (roomCode) {
-                    this.isMultiplayer = true;
-                    
-                    if (this.multiplayerManager.connectToHost(roomCode)) {
-                        // La connexion et le lobby seront gérés automatiquement
-                        console.log('Tentative de connexion...');
-                    }
-                } else {
-                    alert('Veuillez entrer un code de partie valide');
-                }
+            } else {
+                console.error('MultiplayerManager not initialized');
+                connectionStatus.textContent = 'Erreur: Service multijoueur non disponible';
             }
         });
         
+        const handleJoin = () => {
+            const roomCode = roomCodeInput.value.trim();
+            if (roomCode) {
+                this.isMultiplayer = true;
+                connectionStatus.textContent = 'Connexion...';
+                if (this.multiplayerManager && this.multiplayerManager.connectToHost(roomCode)) {
+                    console.log('Tentative de connexion...');
+                } else if (!this.multiplayerManager) {
+                    console.error('MultiplayerManager not initialized');
+                    connectionStatus.textContent = 'Erreur: Service multijoueur non disponible';
+                }
+            } else {
+                connectionStatus.textContent = 'Code requis';
+            }
+        };
+        
+        joinBtn.addEventListener('click', handleJoin);
+        roomCodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleJoin();
+        });
+        
+        // Bouton retour au menu dans le jeu
         const backBtn = document.getElementById('backToMenuBtn');
         if (backBtn) {
             backBtn.addEventListener('click', () => {
                 this.backToMenu();
             });
         }
+        
+        // Focus sur le champ de code quand on charge la page
+        roomCodeInput.addEventListener('focus', () => {
+            connectionStatus.textContent = '';
+        });
     }
     
+    showGameLoadingScreen(callback) {
+        const loadingScreen = document.getElementById('gameLoadingScreen');
+        const loadingProgress = loadingScreen.querySelector('.loading-progress');
+        const loadingTips = [
+            "Les châteaux produisent 2 unités par seconde!",
+            "Utilisez la molette pour ajuster la force d'attaque",
+            "Sélectionnez plusieurs bâtiments pour des attaques coordonnées",
+            "Les bâtiments évoluent automatiquement avec plus d'unités",
+            "La défense offre un bonus de 10% aux unités"
+        ];
+        
+        // Afficher un conseil aléatoire
+        const tipElement = document.getElementById('loadingTip');
+        tipElement.textContent = "Astuce: " + loadingTips[Math.floor(Math.random() * loadingTips.length)];
+        
+        // Afficher l'écran de chargement
+        loadingScreen.style.display = 'flex';
+        
+        // Réinitialiser et animer la barre de progression
+        loadingProgress.style.animation = 'none';
+        setTimeout(() => {
+            loadingProgress.style.animation = 'loadingProgress 4s ease-out forwards';
+        }, 50);
+        
+        // Masquer après 4 secondes
+        setTimeout(() => {
+            loadingScreen.style.display = 'none';
+            if (callback) callback();
+        }, 4000);
+    }
+
     getPlayerStartingPositions(canvasWidth, canvasHeight) {
         const positions = [];
         const centerX = canvasWidth / 2;
@@ -1272,8 +1423,14 @@ class Game {
     }
     
     initAudio() {
+        // Liste des musiques disponibles
+        this.musicTracks = ['medieval.mp3', 'irish.mp3'];
+        
+        // Choisir une musique aléatoire
+        const randomTrack = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
+        
         // Créer l'élément audio pour la musique de fond
-        this.backgroundMusic = new Audio('./assets/main.mp3');
+        this.backgroundMusic = new Audio(`./assets/Sounds/${randomTrack}`);
         this.backgroundMusic.loop = true;
         this.backgroundMusic.volume = 0.3; // Volume modéré
         
@@ -1281,6 +1438,11 @@ class Game {
         this.backgroundMusic.onerror = () => {
             console.log('Impossible de charger la musique de fond');
         };
+        
+        // Quand la musique se termine, charger une nouvelle musique aléatoire
+        this.backgroundMusic.addEventListener('ended', () => {
+            this.loadRandomMusic();
+        });
         
         // Récupérer les préférences audio du localStorage
         const savedMusicSetting = localStorage.getItem('towerRushMusicEnabled');
@@ -1308,6 +1470,38 @@ class Game {
         }
     }
     
+    loadRandomMusic() {
+        if (!this.musicEnabled) return;
+        
+        // Choisir une nouvelle musique aléatoire
+        const randomTrack = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
+        
+        // Créer un nouvel élément audio
+        const newMusic = new Audio(`./assets/Sounds/${randomTrack}`);
+        newMusic.loop = true;
+        newMusic.volume = 0.3;
+        
+        // Remplacer l'ancienne musique
+        if (this.backgroundMusic) {
+            this.backgroundMusic.pause();
+        }
+        
+        this.backgroundMusic = newMusic;
+        
+        // Ajouter l'écouteur pour la prochaine musique
+        this.backgroundMusic.addEventListener('ended', () => {
+            this.loadRandomMusic();
+        });
+        
+        // Jouer la nouvelle musique
+        const playPromise = this.backgroundMusic.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log('Lecture automatique bloquée par le navigateur');
+            });
+        }
+    }
+    
     toggleMusic() {
         this.musicEnabled = !this.musicEnabled;
         localStorage.setItem('towerRushMusicEnabled', this.musicEnabled.toString());
@@ -1325,7 +1519,11 @@ class Game {
     updateMusicButton() {
         const musicBtn = document.getElementById('musicToggleBtn');
         if (musicBtn) {
-            musicBtn.textContent = this.musicEnabled ? '🔊' : '🔇';
+            if (this.musicEnabled) {
+                musicBtn.classList.remove('muted');
+            } else {
+                musicBtn.classList.add('muted');
+            }
             musicBtn.title = this.musicEnabled ? 'Désactiver la musique' : 'Activer la musique';
         }
     }
@@ -1343,7 +1541,20 @@ class Game {
     }
     
     initializeMultiplayer() {
-        this.multiplayerManager = new MultiplayerManager(this);
+        console.log('Attempting to initialize multiplayer...');
+        console.log('MultiplayerManager type:', typeof MultiplayerManager);
+        console.log('window.MultiplayerManager type:', typeof window.MultiplayerManager);
+        
+        if (typeof window.MultiplayerManager !== 'undefined') {
+            this.multiplayerManager = new window.MultiplayerManager(this);
+            console.log('MultiplayerManager initialized successfully');
+        } else if (typeof MultiplayerManager !== 'undefined') {
+            this.multiplayerManager = new MultiplayerManager(this);
+            console.log('MultiplayerManager initialized successfully (from global scope)');
+        } else {
+            console.error('MultiplayerManager class not found. Check if the file is loaded correctly.');
+            this.multiplayerManager = null;
+        }
     }
     
     initializeMultiplayerGame(networkGameState, playerIndex, realPlayerCount) {
@@ -1397,7 +1608,7 @@ class Game {
         
         if (sourceBuilding && targetBuilding && 
             this.canPlayerControlBuilding(playerId, sourceBuilding)) {
-            sourceBuilding.sendUnits(targetBuilding, action.percentage);
+            sourceBuilding.sendUnits(targetBuilding, action.percentage, this);
             
             // Diffuser le nouvel état à tous les clients
             if (this.multiplayerManager && this.multiplayerManager.isHost) {
