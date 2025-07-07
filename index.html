@@ -146,38 +146,24 @@
     <script src="game.js"></script>
     
     <script>
-        // Enregistrement du Service Worker pour PWA
-        if ('serviceWorker' in navigator) {
+        // PWA uniquement si servi via HTTP/HTTPS
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('./sw.js')
                     .then(registration => {
                         console.log('Service Worker enregistré:', registration.scope);
-                        
-                        // Envoyer un signal keep-alive périodique
-                        setInterval(() => {
-                            if (registration.active) {
-                                registration.active.postMessage({
-                                    type: 'KEEP_ALIVE'
-                                });
-                            }
-                        }, 30000);
                     })
                     .catch(error => {
                         console.log('Échec enregistrement Service Worker:', error);
                     });
             });
+        } else {
+            console.log('Service Worker non disponible (protocole file:// ou non supporté)');
         }
         
-        // Gérer l'installation de la PWA
-        let deferredPrompt;
+        // Détection PWA installable
         window.addEventListener('beforeinstallprompt', (e) => {
             console.log('PWA installable détectée');
-            deferredPrompt = e;
-            // Ici on pourrait afficher un bouton d'installation
-        });
-        
-        window.addEventListener('appinstalled', (evt) => {
-            console.log('PWA installée');
         });
     </script>
 </body>
