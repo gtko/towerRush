@@ -254,6 +254,17 @@ class MultiplayerManager {
         
         console.log('Nouvelle connexion:', conn.peer);
         
+        // Vérifier la limite de joueurs (4 max = hôte + 3 autres)
+        if (this.connections.size >= 3) {
+            console.log('Lobby plein, refus de la connexion');
+            this.sendMessage(conn, {
+                type: 'connection_refused',
+                reason: 'Lobby plein (4 joueurs maximum)'
+            });
+            conn.close();
+            return;
+        }
+        
         conn.on('open', () => {
             this.connections.set(conn.peer, conn);
             this.setupConnectionEvents(conn, conn.peer);
@@ -281,6 +292,21 @@ class MultiplayerManager {
             
             if (this.isHost) {
                 this.updateConnectionStatus(`${this.connections.size} joueur(s) connecté(s)`);
+                
+                // Mettre à jour la liste des joueurs connectés
+                this.connectedPlayers = this.connectedPlayers.filter(p => p.id !== playerId);
+                
+                // Si on est en lobby, mettre à jour
+                if (this.inLobby) {
+                    this.updatePlayersList();
+                    this.addSystemMessage('Un joueur a quitté le lobby.');
+                    
+                    // Diffuser la liste mise à jour
+                    this.broadcastToLobby({
+                        type: 'player_list_update',
+                        players: this.connectedPlayers
+                    });
+                }
             }
         });
         
@@ -321,6 +347,10 @@ class MultiplayerManager {
                 this.handleLobbyStartGame(data);
                 break;
                 
+            case 'connection_refused':
+                this.handleConnectionRefused(data);
+                break;
+                
             default:
                 console.log('Type de message inconnu:', data.type);
         }
@@ -355,7 +385,8 @@ class MultiplayerManager {
     handleGameStart(data) {
         if (!this.isHost) {
             // Recevoir l'état initial du jeu
-            this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex);
+            console.log('Réception du démarrage de jeu - Index:', data.myPlayerIndex, 'Total:', data.totalPlayers);
+            this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex, data.totalPlayers);
         }
     }
     
@@ -479,6 +510,18 @@ class MultiplayerManager {
         // Dans une version plus avancée, on pourrait maintenir
         // une liste des peers actifs
         return shortCode;
+    }
+    
+    handleConnectionRefused(data) {
+        // Le serveur refuse la connexion
+        this.updateConnectionStatus(data.reason || 'Connexion refusée');
+        
+        // Retourner au menu après un délai
+        setTimeout(() => {
+            if (document.getElementById('lobbyScreen').style.display !== 'none') {
+                this.leaveLobby();
+            }
+        }, 3000);
     }
     
     // === GESTION DU LOBBY ===
@@ -681,12 +724,35 @@ class MultiplayerManager {
         });
     }
     
+    broadcastGameState() {
+        if (!this.isHost) return;
+        
+        const gameState = this.game.getGameState();
+        const message = {
+            type: 'game_state',
+            gameState: gameState
+        };
+        
+        this.connections.forEach((conn) => {
+            if (conn.open) {
+                this.sendMessage(conn, message);
+            }
+        });
+    }
+    
     startGameFromLobby() {
         if (!this.isHost) return;
         
         const minPlayers = 2;
+        const maxPlayers = 4;
+        
         if (this.connections.size < minPlayers - 1) {
             alert(`Il faut au moins ${minPlayers} joueurs pour commencer`);
+            return;
+        }
+        
+        if (this.connections.size > maxPlayers - 1) {
+            alert(`Maximum ${maxPlayers} joueurs autorisés`);
             return;
         }
         
@@ -716,8 +782,29 @@ class MultiplayerManager {
         
         // Démarrer le jeu multijoueur
         if (this.isHost) {
-            this.game.initializeMultiplayerGame(null, 0);
-            this.broadcastGameState();
+            // L'hôte crée le jeu basé sur les joueurs du lobby
+            const realPlayerCount = this.connections.size + 1; // +1 pour l'hôte
+            console.log(`Démarrage avec ${realPlayerCount} joueurs réels`);
+            
+            this.game.initializeMultiplayerGame(null, 0, realPlayerCount);
+            
+            // Envoyer l'état initial à tous les clients
+            setTimeout(() => {
+                const gameState = this.game.getGameState();
+                let playerIndex = 1;
+                
+                this.connections.forEach((conn, playerId) => {
+                    this.sendMessage(conn, {
+                        type: 'game_start',
+                        gameState: gameState,
+                        myPlayerIndex: playerIndex,
+                        totalPlayers: realPlayerCount
+                    });
+                    playerIndex++;
+                });
+                
+                console.log(`État initial envoyé à ${this.connections.size} clients`);
+            }, 100);
         }
         
         this.addSystemMessage('La partie commence!');

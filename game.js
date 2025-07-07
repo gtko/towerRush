@@ -1021,6 +1021,10 @@ class Game {
     update() {
         if (this.gameOver) return;
         
+        // Sauvegarder l'état précédent pour détecter les changements
+        const previousState = this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost ? 
+            this.getGameStateChecksum() : null;
+        
         // Mettre à jour les bâtiments
         this.buildings.forEach(building => building.update());
         
@@ -1033,8 +1037,17 @@ class Game {
         // Mettre à jour l'interface
         this.updateUI();
         
-        // IA simple
+        // IA simple (désactivée en multijoueur)
         this.updateAI();
+        
+        // Synchronisation multijoueur pour l'hôte
+        if (this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost) {
+            const currentState = this.getGameStateChecksum();
+            if (previousState !== currentState) {
+                // L'état a changé, diffuser aux clients
+                this.multiplayerManager.broadcastGameState();
+            }
+        }
     }
 
     getAISettings() {
@@ -1621,6 +1634,11 @@ class Game {
         if (sourceBuilding && targetBuilding && 
             this.canPlayerControlBuilding(playerId, sourceBuilding)) {
             sourceBuilding.sendUnits(targetBuilding, action.percentage);
+            
+            // Diffuser le nouvel état à tous les clients
+            if (this.multiplayerManager && this.multiplayerManager.isHost) {
+                this.multiplayerManager.broadcastGameState();
+            }
         }
     }
     
@@ -1658,7 +1676,15 @@ class Game {
     }
     
     loadGameStateFromNetwork(gameState) {
-        // Charger l'état de jeu depuis le réseau
+        console.log('Chargement de l\'\u00e9tat de jeu depuis le r\u00e9seau:', gameState);
+        
+        // Ajuster la taille du canvas si nécessaire
+        if (gameState.canvasWidth && gameState.canvasHeight) {
+            this.canvas.width = gameState.canvasWidth;
+            this.canvas.height = gameState.canvasHeight;
+        }
+        
+        // Charger les bâtiments
         this.buildings = gameState.buildings.map(buildingData => {
             const building = new Building(buildingData.x, buildingData.y, buildingData.owner, buildingData.units);
             building.selected = buildingData.selected;
@@ -1668,6 +1694,7 @@ class Game {
             return building;
         });
         
+        // Charger les groupes d'unités
         this.unitGroups = gameState.unitGroups.map(groupData => {
             const group = new UnitGroup(
                 groupData.startX, groupData.startY,
@@ -1680,13 +1707,27 @@ class Game {
             return group;
         });
         
+        // État du jeu
         this.gameOver = gameState.gameOver;
         this.sendPercentage = gameState.sendPercentage;
+        this.gameStarted = gameState.gameStarted || true;
+        
+        // S'assurer que le terrain est chargé
+        if (!this.terrainGenerated) {
+            this.generateTerrain();
+        }
+        
+        console.log('\u00c9tat charg\u00e9 - B\u00e2timents:', this.buildings.length, 'Unit\u00e9s:', this.unitGroups.length);
     }
     
     getGameState() {
         // Sérialiser l'état actuel du jeu pour le réseau
         return {
+            // Informations de la map
+            canvasWidth: this.canvas.width,
+            canvasHeight: this.canvas.height,
+            
+            // État du jeu
             buildings: this.buildings.map(building => ({
                 x: building.x,
                 y: building.y,
@@ -1709,7 +1750,8 @@ class Game {
                 progress: group.progress
             })),
             gameOver: this.gameOver,
-            sendPercentage: this.sendPercentage
+            sendPercentage: this.sendPercentage,
+            gameStarted: this.gameStarted
         };
     }
     
@@ -1733,6 +1775,14 @@ class Game {
         } else {
             return 'player'; // Mode local classique
         }
+    }
+    
+    getGameStateChecksum() {
+        // Créer un checksum simple pour détecter les changements
+        const buildings = this.buildings.length;
+        const units = this.unitGroups.length;
+        const totalUnits = this.buildings.reduce((sum, b) => sum + b.units, 0);
+        return `${buildings}-${units}-${totalUnits}`;
     }
 }
 
