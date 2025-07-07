@@ -1,0 +1,52 @@
+name: Deploy to BunnyCDN
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - master
+      - main
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Deploy to BunnyCDN Storage
+        run: |
+          # Upload all files to BunnyCDN storage zone
+          find . -type f -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.svg" -o -name "*.ico" | while read file; do
+            # Remove leading ./ from file path
+            filepath=${file#./}
+            # Skip .git and .github directories
+            if [[ ! "$filepath" =~ ^\.git ]]; then
+              echo "Uploading $filepath"
+              curl -X PUT \
+                -H "AccessKey: ${{ secrets.BUNNYCDN_STORAGE_API_KEY }}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary "@$file" \
+                "https://${{ secrets.BUNNYCDN_STORAGE_ZONE }}.storage.bunnycdn.com/${{ secrets.BUNNYCDN_STORAGE_PATH }}/$filepath"
+            fi
+          done
+          
+      - name: Purge BunnyCDN Cache
+        run: |
+          curl -X POST \
+            -H "AccessKey: ${{ secrets.BUNNYCDN_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            "https://api.bunny.net/pullzone/${{ secrets.BUNNYCDN_PULLZONE_ID }}/purgeCache"
+            
+      - name: Trigger Release Workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'create-release.yml',
+              ref: 'master'
+            });

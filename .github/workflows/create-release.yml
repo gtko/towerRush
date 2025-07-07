@@ -1,0 +1,78 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Get next version
+        id: get_version
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest tag: $LATEST_TAG"
+          
+          # Extract version numbers
+          VERSION=${LATEST_TAG#v}
+          MAJOR=$(echo $VERSION | cut -d. -f1)
+          MINOR=$(echo $VERSION | cut -d. -f2)
+          PATCH=$(echo $VERSION | cut -d. -f3)
+          
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          
+          echo "New version: $NEW_VERSION"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "version_number=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+          
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get commit messages since last tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s" --no-merges)
+          else
+            COMMITS=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s" --no-merges)
+          fi
+          
+          # Create changelog content
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "## What's Changed" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LATEST_TAG}...${{ steps.get_version.outputs.new_version }}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.new_version }}
+          release_name: Tower Rush ${{ steps.get_version.outputs.new_version }}
+          body: |
+            # Tower Rush ${{ steps.get_version.outputs.version_number }}
+            
+            ${{ steps.changelog.outputs.CHANGELOG }}
+            
+            ## Play Now
+            
+            🎮 [Play Tower Rush](${{ secrets.BUNNYCDN_URL }})
+            
+          draft: false
+          prerelease: false
