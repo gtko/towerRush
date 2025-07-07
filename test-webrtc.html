@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test WebRTC Simple</title>
+    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        input, button { padding: 10px; margin: 5px; }
+        #messages { height: 200px; overflow-y: scroll; border: 1px solid #eee; padding: 10px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>Test WebRTC Simple</h1>
+    
+    <div class="section">
+        <h3>Mon ID Peer</h3>
+        <div id="myPeerId">Initialisation...</div>
+        <button onclick="copyMyId()">Copier mon ID</button>
+    </div>
+    
+    <div class="section">
+        <h3>Se connecter à un peer</h3>
+        <input type="text" id="targetPeerId" placeholder="ID du peer à contacter">
+        <button onclick="connectToPeer()">Se connecter</button>
+    </div>
+    
+    <div class="section">
+        <h3>Envoyer un message</h3>
+        <input type="text" id="messageInput" placeholder="Votre message">
+        <button onclick="sendMessage()">Envoyer</button>
+    </div>
+    
+    <div class="section">
+        <h3>Messages</h3>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let peer = null;
+        let connections = {};
+        
+        function log(message) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML += new Date().toLocaleTimeString() + ' - ' + message + '<br>';
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function initPeer() {
+            peer = new Peer({
+                debug: 3,
+                config: {
+                    'iceServers': [
+                        { 'urls': 'stun:stun.l.google.com:19302' },
+                        { 'urls': 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
+            });
+            
+            peer.on('open', function(id) {
+                document.getElementById('myPeerId').textContent = id;
+                log('Peer initialisé avec ID: ' + id);
+            });
+            
+            peer.on('connection', function(conn) {
+                log('Connexion entrante de: ' + conn.peer);
+                setupConnection(conn);
+            });
+            
+            peer.on('error', function(err) {
+                log('ERREUR: ' + err.type + ' - ' + err.message);
+            });
+            
+            peer.on('disconnected', function() {
+                log('Peer déconnecté');
+            });
+        }
+        
+        function setupConnection(conn) {
+            connections[conn.peer] = conn;
+            
+            conn.on('open', function() {
+                log('Connexion ouverte avec: ' + conn.peer);
+            });
+            
+            conn.on('data', function(data) {
+                log('Message reçu de ' + conn.peer + ': ' + data);
+            });
+            
+            conn.on('close', function() {
+                log('Connexion fermée avec: ' + conn.peer);
+                delete connections[conn.peer];
+            });
+            
+            conn.on('error', function(err) {
+                log('Erreur connexion avec ' + conn.peer + ': ' + err);
+            });
+        }
+        
+        function connectToPeer() {
+            const targetId = document.getElementById('targetPeerId').value;
+            if (!targetId) {
+                alert('Entrez un ID de peer');
+                return;
+            }
+            
+            log('Tentative de connexion à: ' + targetId);
+            const conn = peer.connect(targetId, {reliable: true});
+            setupConnection(conn);
+        }
+        
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            if (!message) return;
+            
+            Object.values(connections).forEach(conn => {
+                if (conn.open) {
+                    conn.send(message);
+                    log('Message envoyé: ' + message);
+                }
+            });
+            
+            document.getElementById('messageInput').value = '';
+        }
+        
+        function copyMyId() {
+            const id = peer ? peer.id : '';
+            navigator.clipboard.writeText(id).then(() => {
+                log('ID copié dans le presse-papier');
+            });
+        }
+        
+        // Initialiser au chargement
+        window.onload = initPeer;
+    </script>
+</body>
+</html>

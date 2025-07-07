@@ -5,15 +5,102 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Rush</title>
     <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+    <script src="multiplayer.js"></script>
 </head>
 <body>
-    <div class="game-container">
+    <div class="menu-screen" id="menuScreen">
+        <div class="menu-content">
+            <h1>Tower Rush</h1>
+            <div class="menu-options">
+                <div class="player-selection">
+                    <label for="playerCount">Nombre de joueurs:</label>
+                    <select id="playerCount">
+                        <option value="2">2 Joueurs</option>
+                        <option value="3">3 Joueurs</option>
+                        <option value="4">4 Joueurs</option>
+                    </select>
+                </div>
+                <div class="difficulty-selection">
+                    <label for="aiDifficulty">Difficulté IA:</label>
+                    <select id="aiDifficulty">
+                        <option value="easy">Facile</option>
+                        <option value="medium" selected>Moyen</option>
+                        <option value="hard">Difficile</option>
+                    </select>
+                </div>
+                <div class="game-mode-selection">
+                    <label for="gameMode">Mode de jeu:</label>
+                    <select id="gameMode">
+                        <option value="local">Local (vs IA)</option>
+                        <option value="host">Multijoueur - Créer partie</option>
+                        <option value="join">Multijoueur - Rejoindre</option>
+                    </select>
+                </div>
+                <div class="multiplayer-controls" id="multiplayerControls" style="display: none;">
+                    <div class="room-code-section" id="roomCodeSection">
+                        <label for="roomCode">Code de la partie:</label>
+                        <input type="text" id="roomCode" placeholder="Entrez le code...">
+                        <button id="copyCodeBtn" style="display: none;">Copier</button>
+                    </div>
+                    <div class="connection-status" id="connectionStatus">
+                        <span id="statusText">En attente...</span>
+                    </div>
+                </div>
+                <button id="startGameBtn">Commencer la Partie</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lobby multijoueur -->
+    <div class="lobby-screen" id="lobbyScreen" style="display: none;">
+        <div class="lobby-content">
+            <div class="lobby-header">
+                <h1>Lobby - Tower Rush</h1>
+                <div class="lobby-info">
+                    <span class="room-code-display">Code: <span id="lobbyRoomCode"></span></span>
+                    <button id="leaveLobbyBtn" class="leave-btn">Quitter</button>
+                </div>
+            </div>
+            
+            <div class="lobby-main">
+                <div class="players-section">
+                    <h3>Joueurs connectés</h3>
+                    <div class="players-list" id="playersList">
+                        <!-- Liste des joueurs sera générée ici -->
+                    </div>
+                    <div class="lobby-controls">
+                        <button id="startGameLobbyBtn" class="start-game-btn" style="display: none;">Démarrer la partie</button>
+                        <div class="waiting-message" id="waitingMessage" style="display: none;">
+                            En attente que l'hôte démarre la partie...
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-section">
+                    <h3>Chat</h3>
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Messages du chat -->
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" placeholder="Tapez votre message..." maxlength="200">
+                        <button id="sendChatBtn">Envoyer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-container" id="gameContainer" style="display: none;">
         <div class="game-header">
             <h1>Tower Rush</h1>
             <div class="game-info">
                 <div class="player-info">
                     <span class="player-label">Joueur</span>
                     <span class="player-buildings" id="playerBuildings">0</span>
+                </div>
+                <div class="audio-controls">
+                    <button id="musicToggleBtn" class="music-btn" title="Activer/Désactiver la musique">🔊</button>
                 </div>
                 <div class="enemy-info">
                     <span class="enemy-label">Ennemi</span>
@@ -38,6 +125,7 @@
                         <span class="percentage-hint">(molette)</span>
                     </div>
                     <button id="sendBtn" disabled>Envoyer</button>
+                    <button id="backToMenuBtn">Menu</button>
                 </div>
             </div>
         </div>
