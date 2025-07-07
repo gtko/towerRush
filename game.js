@@ -260,21 +260,27 @@ class UnitGroup {
         const maxSoldiers = Math.min(this.units, 10); // Maximum 10 soldats visibles
         
         for (let i = 0; i < maxSoldiers; i++) {
-            // Créer une formation en triangle ou en ligne
+            // Créer une formation plus espacée
             let offsetX, offsetY;
             
             if (maxSoldiers <= 3) {
-                // Formation en ligne pour 1-3 soldats
-                offsetX = (i - (maxSoldiers - 1) / 2) * 8;
+                // Formation en ligne pour 1-3 soldats avec plus d'espacement
+                offsetX = (i - (maxSoldiers - 1) / 2) * 16;
                 offsetY = 0;
+            } else if (maxSoldiers <= 6) {
+                // Formation en double ligne pour 4-6 soldats
+                const row = Math.floor(i / 3);
+                const col = i % 3;
+                offsetX = (col - 1) * 16;
+                offsetY = row * 14;
             } else {
-                // Formation en triangle pour 4+ soldats
+                // Formation en triangle élargi pour 7+ soldats
                 const row = Math.floor(Math.sqrt(i));
                 const posInRow = i - row * row;
                 const rowWidth = row * 2 + 1;
                 
-                offsetX = (posInRow - row) * 6;
-                offsetY = row * 8;
+                offsetX = (posInRow - row) * 12; // Plus d'espacement horizontal
+                offsetY = row * 14; // Plus d'espacement vertical
             }
             
             this.soldiers.push({
@@ -286,8 +292,15 @@ class UnitGroup {
     }
     
     calculateDirection() {
-        // Pour l'instant, utilisons juste une animation de marche simple
-        // On peut ajouter les directions plus tard
+        // Calculer la direction du mouvement pour orienter les sprites
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        
+        // Déterminer si on va vers la gauche ou la droite
+        this.facingLeft = dx < 0;
+        
+        // Pour l'instant, on utilise la ligne 1 pour l'animation de marche
+        // On pourrait ajouter plus de directions plus tard (haut, bas, diagonales)
         return 1; // Ligne 1 (2ème ligne) pour l'animation de marche
     }
     
@@ -383,12 +396,25 @@ class UnitGroup {
                 const soldierX = this.x + soldier.offsetX;
                 const soldierY = this.y + soldier.offsetY;
                 
+                // Sauvegarder le contexte pour la transformation
+                ctx.save();
+                
+                // Si on va vers la gauche, retourner le sprite horizontalement
+                if (this.facingLeft) {
+                    ctx.translate(soldierX, soldierY);
+                    ctx.scale(-1, 1); // Miroir horizontal
+                    ctx.translate(-soldierX, -soldierY);
+                }
+                
                 // Dessiner le soldat
                 ctx.drawImage(
                     this.sprite,
                     srcX, srcY, this.frameWidth, this.frameHeight, // Source
                     soldierX - drawSize/2, soldierY - drawSize/2, drawSize, drawSize // Destination
                 );
+                
+                // Restaurer le contexte
+                ctx.restore();
             });
             
             
