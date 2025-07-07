@@ -194,7 +194,7 @@ class UnitGroup {
         this.owner = owner;
         this.x = source.x;
         this.y = source.y;
-        this.speed = 30;
+        this.speed = 34.5; // +15% de vitesse (30 * 1.15)
         this.lastUpdate = Date.now();
         this.sprite = null;
         this.spriteLoaded = false;
@@ -264,23 +264,23 @@ class UnitGroup {
             let offsetX, offsetY;
             
             if (maxSoldiers <= 3) {
-                // Formation en ligne pour 1-3 soldats avec plus d'espacement
-                offsetX = (i - (maxSoldiers - 1) / 2) * 16;
+                // Formation en ligne pour 1-3 soldats avec encore plus d'espacement
+                offsetX = (i - (maxSoldiers - 1) / 2) * 20;
                 offsetY = 0;
             } else if (maxSoldiers <= 6) {
                 // Formation en double ligne pour 4-6 soldats
                 const row = Math.floor(i / 3);
                 const col = i % 3;
-                offsetX = (col - 1) * 16;
-                offsetY = row * 14;
+                offsetX = (col - 1) * 20;
+                offsetY = row * 18;
             } else {
                 // Formation en triangle élargi pour 7+ soldats
                 const row = Math.floor(Math.sqrt(i));
                 const posInRow = i - row * row;
                 const rowWidth = row * 2 + 1;
                 
-                offsetX = (posInRow - row) * 12; // Plus d'espacement horizontal
-                offsetY = row * 14; // Plus d'espacement vertical
+                offsetX = (posInRow - row) * 16; // Encore plus d'espacement horizontal
+                offsetY = row * 18; // Encore plus d'espacement vertical
             }
             
             this.soldiers.push({
@@ -383,7 +383,7 @@ class UnitGroup {
     draw(ctx) {
         // Dessiner plusieurs soldats selon le nombre d'unités
         if (this.spriteLoaded && this.sprite && this.sprite.complete) {
-            const drawSize = 56; // Taille encore plus grande (42 * 1.33)
+            const drawSize = 67; // +20% de taille (56 * 1.2)
             
             // Dessiner chaque soldat dans la formation
             this.soldiers.forEach((soldier, index) => {
