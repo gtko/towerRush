@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Rush</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="game-header">
+            <h1>Tower Rush</h1>
+            <div class="game-info">
+                <div class="player-info">
+                    <span class="player-label">Joueur</span>
+                    <span class="player-buildings" id="playerBuildings">0</span>
+                </div>
+                <div class="enemy-info">
+                    <span class="enemy-label">Ennemi</span>
+                    <span class="enemy-buildings" id="enemyBuildings">0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-canvas-container">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+        
+        <div class="game-controls">
+            <div class="control-panel">
+                <div class="selected-building">
+                    <span id="selectedBuildingInfo">Sélectionnez un bâtiment</span>
+                </div>
+                <div class="action-buttons">
+                    <div class="percentage-control">
+                        <span class="percentage-label">Pourcentage:</span>
+                        <span class="percentage-value" id="percentageInfo">50%</span>
+                        <span class="percentage-hint">(molette)</span>
+                    </div>
+                    <button id="sendBtn" disabled>Envoyer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver" style="display: none;">
+        <div class="game-over-content">
+            <h2 id="gameOverTitle">Fin de Partie</h2>
+            <p id="gameOverMessage">Message</p>
+            <button id="restartBtn">Recommencer</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
