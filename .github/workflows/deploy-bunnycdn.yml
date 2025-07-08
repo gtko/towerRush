@@ -183,6 +183,10 @@ jobs:
       run: |
         echo "🏷️ Creating release..."
         
+        # Configurer Git pour les actions automatiques
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        
         # Calculer la nouvelle version basée sur les tags existants et les commits
         LATEST_TAG=$(git tag --sort=-version:refname | head -n1)
         
