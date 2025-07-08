@@ -178,9 +178,198 @@ jobs:
           "https://api.bunny.net/pullzone/${BUNNY_PULL_ZONE_ID}/purgeCache"
         echo "Cache purged successfully!"
 
+    - name: Create Release
+      if: success()
+      run: |
+        echo "🏷️ Creating release..."
+        
+        # Calculer la nouvelle version basée sur les tags existants et les commits
+        LATEST_TAG=$(git tag --sort=-version:refname | head -n1)
+        
+        if [ -z "$LATEST_TAG" ]; then
+          # Aucun tag existant, créer v1.0.0
+          NEW_VERSION="v1.0.0"
+          echo "🆕 Premier tag - Création de la version initiale"
+        else
+          # Extraire les composants de version du dernier tag
+          VERSION_NUMBER=$(echo $LATEST_TAG | sed 's/v//')
+          MAJOR=$(echo $VERSION_NUMBER | cut -d. -f1)
+          MINOR=$(echo $VERSION_NUMBER | cut -d. -f2)
+          PATCH=$(echo $VERSION_NUMBER | cut -d. -f3)
+          
+          # Compter les commits depuis le dernier tag
+          COMMITS_SINCE_TAG=$(git rev-list ${LATEST_TAG}..HEAD --count)
+          
+          if [ "$COMMITS_SINCE_TAG" -eq 0 ]; then
+            echo "⚠️ Aucun nouveau commit depuis le tag $LATEST_TAG - Pas de nouvelle release"
+            exit 0
+          fi
+          
+          echo "📊 $COMMITS_SINCE_TAG commit(s) depuis le tag $LATEST_TAG"
+          
+          # Analyser tous les commits depuis le dernier tag
+          COMMITS_MESSAGES=$(git log ${LATEST_TAG}..HEAD --pretty=format:"%s")
+          
+          # Déterminer le type de version basé sur les commits
+          HAS_BREAKING=false
+          HAS_FEAT=false
+          
+          while IFS= read -r commit_msg; do
+            if echo "$commit_msg" | grep -q "BREAKING CHANGE\|^feat!\|^fix!\|^docs!\|^style!\|^refactor!\|^perf!\|^test!\|^build!\|^ci!\|^chore!"; then
+              HAS_BREAKING=true
+              break
+            elif echo "$commit_msg" | grep -q "^feat\|^feature"; then
+              HAS_FEAT=true
+            fi
+          done <<< "$COMMITS_MESSAGES"
+          
+          # Calculer la nouvelle version
+          if [ "$HAS_BREAKING" = true ]; then
+            # Breaking change = version majeure
+            MAJOR=$((MAJOR + 1))
+            MINOR=0
+            PATCH=0
+            echo "💥 Breaking change détecté → Version majeure"
+          elif [ "$HAS_FEAT" = true ]; then
+            # Nouvelle fonctionnalité = version mineure
+            MINOR=$((MINOR + 1))
+            PATCH=0
+            echo "✨ Nouvelle fonctionnalité détectée → Version mineure"
+          else
+            # Fix, docs, style, etc. = version patch
+            PATCH=$((PATCH + 1))
+            echo "🔧 Corrections/améliorations détectées → Version patch"
+          fi
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+        fi
+        
+        echo "📋 Latest tag: ${LATEST_TAG:-"none"}"
+        echo "🔢 New version: $NEW_VERSION"
+        
+        # Créer le répertoire de release
+        mkdir -p release
+        
+        # Copier tous les fichiers du jeu
+        cp *.html release/ 2>/dev/null || true
+        cp *.css release/ 2>/dev/null || true
+        cp *.js release/ 2>/dev/null || true
+        cp *.json release/ 2>/dev/null || true
+        cp -r src release/ 2>/dev/null || true
+        cp -r assets release/ 2>/dev/null || true
+        cp README.md release/ 2>/dev/null || true
+        
+        # Créer un README pour la release
+        cat > release/INSTALL.md << EOF
+        # Tower Rush ${NEW_VERSION}
+        
+        ## Installation
+        1. Extraire tous les fichiers
+        2. Ouvrir \`index.html\` dans un navigateur moderne
+        3. Ou servir via un serveur web local pour le multijoueur
+        
+        ## Serveur local (recommandé pour multijoueur)
+        \`\`\`bash
+        # Python 3
+        python3 -m http.server 8000
+        
+        # Node.js
+        npx serve .
+        
+        # PHP
+        php -S localhost:8000
+        \`\`\`
+        
+        Puis aller sur http://localhost:8000
+        
+        ## Fonctionnalités
+        - Mode solo contre IA
+        - Mode multijoueur jusqu'à 4 joueurs (WebRTC)
+        - Système de profils et avatars
+        - Classement des scores
+        - Interface responsive
+        
+        ## Support
+        - Repository: https://github.com/gtko/towerRush
+        - Issues: https://github.com/gtko/towerRush/issues
+        EOF
+        
+        # Créer les fichiers zip
+        cd release
+        zip -r "../tower-rush-${NEW_VERSION}.zip" . -x "*.DS_Store" "*.git*"
+        zip -r "../tower-rush-game.zip" . -x "*.DS_Store" "*.git*"
+        cd ..
+        
+        echo "📦 Created release files:"
+        ls -la *.zip
+        
+        # Générer les notes de release
+        if [ -n "$LATEST_TAG" ]; then
+          COMMIT_MESSAGES=$(git log ${LATEST_TAG}..HEAD --pretty=format:"- %s")
+          COMMITS_COUNT=$(git rev-list ${LATEST_TAG}..HEAD --count)
+        else
+          COMMIT_MESSAGES=$(git log --pretty=format:"- %s")
+          COMMITS_COUNT=$(git rev-list HEAD --count)
+        fi
+        
+        cat > release_notes.md << EOF
+        ## 🎮 Tower Rush ${NEW_VERSION}
+        
+        ### 📊 Statistiques
+        - **${COMMITS_COUNT} commits** depuis la dernière version
+        - **Dernière version** : ${LATEST_TAG:-"Première release"}
+        
+        ### 📋 Changements
+        
+        ${COMMIT_MESSAGES}
+        
+        ### 🚀 Installation
+        
+        1. Téléchargez \`tower-rush-${NEW_VERSION}.zip\`
+        2. Extrayez le fichier zip
+        3. Ouvrez \`index.html\` dans votre navigateur
+        
+        ### 🎯 Fonctionnalités
+        
+        - ✅ Mode solo contre IA intelligente
+        - ✅ Mode multijoueur jusqu'à 4 joueurs (WebRTC P2P)
+        - ✅ Système de profils avec avatars personnalisés
+        - ✅ Classement global des scores
+        - ✅ Interface moderne et responsive
+        - ✅ Contrôles intuitifs (souris + clavier)
+        
+        ### 🌐 Jouer en ligne
+        
+        [**🎮 Jouer maintenant**](https://gtko.github.io/towerRush/)
+        
+        ### 🐛 Signaler un problème
+        
+        [Créer une issue](https://github.com/gtko/towerRush/issues/new)
+        EOF
+        
+        echo "📝 Release notes created"
+        
+        # Créer le tag git
+        git tag "$NEW_VERSION" -m "Release ${NEW_VERSION}"
+        git push origin "$NEW_VERSION"
+        
+        # Créer la release via GitHub CLI
+        gh release create "$NEW_VERSION" \
+          "tower-rush-${NEW_VERSION}.zip#Jeu complet (${NEW_VERSION})" \
+          "tower-rush-game.zip#Jeu complet (version générique)" \
+          --title "🎮 Tower Rush ${NEW_VERSION}" \
+          --notes-file release_notes.md \
+          --latest
+        
+        echo "✅ Tag ${NEW_VERSION} créé et release publiée avec succès!"
+        
+        # Nettoyage
+        rm -rf release *.zip release_notes.md
+
     - name: Deploy Summary
       run: |
         echo "🚀 Deployment completed!"
         echo "📦 Files uploaded to BunnyCDN Storage Zone: ${{ secrets.BUNNY_STORAGE_ZONE }}"
         echo "🌐 Your site should be available at your configured BunnyCDN URL"
+        echo "🏷️ Release created automatically"
         echo "⏰ Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"

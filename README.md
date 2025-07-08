@@ -71,9 +71,8 @@ tower-rush/
 - **Canvas API** : Pour le rendu 2D
 - **WebRTC (PeerJS)** : Pour le multijoueur peer-to-peer
 - **LocalStorage** : Pour sauvegarder les profils et scores
-- **GitHub Actions** : Pour le déploiement automatique
-- **Semantic Release** : Pour les versions automatiques
-- **BunnyCDN** : Pour l'hébergement et la distribution
+- **GitHub Actions** : Pour le déploiement et releases automatiques
+- **BunnyCDN** : Pour l'hébergement et la distribution CDN
 
 ## Développement
 
@@ -107,17 +106,21 @@ docs: mettre à jour le README
 
 ### Releases automatiques
 
-Les releases sont automatiquement créées lors des merges dans `master` grâce à [semantic-release](https://semantic-release.gitbook.io/semantic-release/). Un changelog est généré automatiquement basé sur les commits.
+Les releases sont automatiquement créées après chaque déploiement réussi sur `master`. Le versioning suit les [Conventional Commits](https://www.conventionalcommits.org/fr/v1.0.0/) :
+
+- `feat:` → Version mineure (v1.1.0)
+- `fix:`, `docs:`, `style:`, etc. → Version patch (v1.0.1)  
+- `feat!` ou `BREAKING CHANGE` → Version majeure (v2.0.0)
 
 ## Déploiement et Releases
 
 ### 🚀 Workflow automatique
 
-Le projet utilise un workflow automatique pour le déploiement et les releases :
+Le projet utilise un workflow automatique intégré :
 
 1. **Push sur master** → **Déploiement BunnyCDN** (avec compression zip)
-2. **Déploiement réussi** → **Release automatique** (avec semantic-release)
-3. **Release créée** avec fichiers zip téléchargeables
+2. **Déploiement réussi** → **Release automatique** (basée sur conventional commits)
+3. **Release créée** avec fichiers zip téléchargeables et changelog
 
 ### 📦 Téléchargement
 
