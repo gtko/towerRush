@@ -2056,6 +2056,86 @@ class Game {
         this.updateGameStatePreservingLocalState(networkGameState);
     }
     
+    updateGameStatePreservingLocalState(gameState) {
+        // Sauvegarder les sélections locales actuelles
+        const localSelections = new Map();
+        this.buildings.forEach((building, index) => {
+            if (building.selected) {
+                localSelections.set(index, true);
+            }
+        });
+        
+        // Sauvegarder les bâtiments sélectionnés
+        const selectedBuildingsIndices = this.selectedBuildings.map(building => 
+            this.buildings.indexOf(building)
+        ).filter(index => index >= 0);
+        
+        console.log('Mise à jour réseau - Préservation de', selectedBuildingsIndices.length, 'sélections locales');
+        
+        // Mettre à jour les bâtiments en préservant les sélections
+        if (gameState.buildings && gameState.buildings.length > 0) {
+            gameState.buildings.forEach((buildingData, index) => {
+                if (this.buildings[index]) {
+                    // Mettre à jour les propriétés du bâtiment existant
+                    const building = this.buildings[index];
+                    const wasSelected = building.selected; // Préserver la sélection locale
+                    
+                    building.owner = buildingData.owner;
+                    building.units = buildingData.units;
+                    building.maxUnits = buildingData.maxUnits;
+                    building.productionRate = buildingData.productionRate;
+                    building.lastProduction = buildingData.lastProduction;
+                    
+                    // Restaurer la sélection locale
+                    building.selected = wasSelected;
+                    
+                    // Recharger le sprite si le propriétaire a changé
+                    building.loadSprite();
+                } else {
+                    // Créer un nouveau bâtiment (cas rare)
+                    const building = new Building(buildingData.x, buildingData.y, buildingData.owner, buildingData.units);
+                    building.selected = false; // Nouveau bâtiment = pas sélectionné
+                    building.maxUnits = buildingData.maxUnits;
+                    building.productionRate = buildingData.productionRate;
+                    building.lastProduction = buildingData.lastProduction;
+                    this.buildings[index] = building;
+                }
+            });
+        }
+        
+        // Reconstruire la liste des bâtiments sélectionnés
+        this.selectedBuildings = [];
+        selectedBuildingsIndices.forEach(index => {
+            if (this.buildings[index] && this.buildings[index].selected) {
+                this.selectedBuildings.push(this.buildings[index]);
+            }
+        });
+        
+        // Mettre à jour les groupes d'unités (ils ne sont pas sélectionnables)
+        if (gameState.unitGroups) {
+            this.unitGroups = gameState.unitGroups.map(groupData => {
+                const sourceObj = { x: groupData.startX, y: groupData.startY };
+                const targetObj = { x: groupData.targetX, y: groupData.targetY };
+                
+                const group = new UnitGroup(sourceObj, targetObj, groupData.units, groupData.owner);
+                group.x = groupData.x;
+                group.y = groupData.y;
+                group.progress = groupData.progress || 0;
+                group.speed = groupData.speed || 30;
+                group.lastUpdate = groupData.lastUpdate || Date.now();
+                group.loadSprite();
+                
+                return group;
+            });
+        }
+        
+        // Mettre à jour l'état global
+        this.gameOver = gameState.gameOver;
+        this.sendPercentage = gameState.sendPercentage;
+        
+        console.log('État réseau mis à jour - Sélections préservées:', this.selectedBuildings.length);
+    }
+    
     loadGameStateFromNetwork(gameState) {
         console.log('Chargement de l\'état de jeu depuis le réseau:', gameState);
         
