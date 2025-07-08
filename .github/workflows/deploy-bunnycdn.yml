@@ -84,29 +84,29 @@ jobs:
         cp -r assets deploy_temp/ 2>/dev/null || true
         
         # Create extraction script for server-side decompression
-        cat > deploy_temp/extract.php << 'EOF'
-<?php
-// Script automatique de décompression pour BunnyCDN
-$zipFile = 'deployment.zip';
-$extractTo = './';
-
-if (file_exists($zipFile)) {
-    $zip = new ZipArchive;
-    if ($zip->open($zipFile) === TRUE) {
-        $zip->extractTo($extractTo);
-        $zip->close();
-        echo "Archive extraite avec succès\n";
-        // Nettoyer après extraction
-        unlink($zipFile);
-        unlink(__FILE__); // Supprimer ce script
-    } else {
-        echo "Erreur lors de l'ouverture de l'archive\n";
-    }
-} else {
-    echo "Archive non trouvée\n";
-}
-?>
-EOF
+        cat > deploy_temp/extract.php << 'PHPEOF'
+        <?php
+        // Script automatique de décompression pour BunnyCDN
+        $zipFile = 'deployment.zip';
+        $extractTo = './';
+        
+        if (file_exists($zipFile)) {
+            $zip = new ZipArchive;
+            if ($zip->open($zipFile) === TRUE) {
+                $zip->extractTo($extractTo);
+                $zip->close();
+                echo "Archive extraite avec succès\n";
+                // Nettoyer après extraction
+                unlink($zipFile);
+                unlink(__FILE__); // Supprimer ce script
+            } else {
+                echo "Erreur lors de l'ouverture de l'archive\n";
+            }
+        } else {
+            echo "Archive non trouvée\n";
+        }
+        ?>
+        PHPEOF
         
         # Create tar.gz archive (better compression than zip)
         echo "Creating tar.gz archive for better compression..."
