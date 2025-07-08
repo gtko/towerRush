@@ -200,11 +200,13 @@ class MultiplayerManager {
                 this.setupConnectionEvents(conn, 'host');
                 this.updateConnectionStatus('Connecté! Accès au lobby...');
                 
-                // Envoyer les informations du joueur
+                // Envoyer les informations du joueur avec profil
+                const playerProfile = this.game.getPlayerProfileForMultiplayer();
                 this.sendMessage(conn, {
                     type: 'player_info',
                     playerId: this.myPlayerId,
-                    playerName: `Joueur ${Date.now().toString().slice(-4)}`
+                    playerName: playerProfile.name,
+                    playerAvatar: playerProfile.avatar
                 });
                 
                 // Afficher le lobby
@@ -342,6 +344,7 @@ class MultiplayerManager {
             this.connectedPlayers.push({
                 id: senderId,
                 name: data.playerName,
+                avatar: data.playerAvatar || '👤',
                 playerId: data.playerId
             });
             
@@ -703,11 +706,24 @@ class MultiplayerManager {
         
         playersList.innerHTML = '';
         
-        // Ajouter l'hôte
+        // Ajouter l'hôte avec son profil
+        const hostProfile = this.game.getPlayerProfileForMultiplayer();
         if (this.isHost) {
-            this.addPlayerToList('Hôte (Vous)', 'player', true, true);
+            this.addPlayerToList(
+                hostProfile.name + ' (Vous)', 
+                hostProfile.avatar,
+                'player', 
+                true, 
+                true
+            );
         } else {
-            this.addPlayerToList('Hôte', 'player', true, false);
+            this.addPlayerToList(
+                'Hôte', 
+                '👑', // Avatar par défaut pour l'hôte distant
+                'player', 
+                true, 
+                false
+            );
         }
         
         // Ajouter les autres joueurs
@@ -716,6 +732,7 @@ class MultiplayerManager {
             const isYou = !this.isHost && player.id === this.myPlayerId;
             this.addPlayerToList(
                 player.name + (isYou ? ' (Vous)' : ''), 
+                player.avatar || '👤',
                 ownerType, 
                 false, 
                 isYou
@@ -723,23 +740,29 @@ class MultiplayerManager {
         });
     }
     
-    addPlayerToList(name, ownerType, isHost, isYou) {
+    addPlayerToList(name, avatar, ownerType, isHost, isYou) {
         const playersList = document.getElementById('playersList');
         const playerDiv = document.createElement('div');
         playerDiv.className = 'player-item';
         
         const colors = {
-            'player': '#4FC3F7',    // Bleu
-            'enemy': '#F44336',     // Rouge
-            'enemy2': '#424242',    // Noir
-            'enemy3': '#FFD700'     // Jaune
+            'player': 'blue',    // Bleu
+            'enemy': 'red',      // Rouge
+            'enemy2': 'purple',  // Violet
+            'enemy3': 'yellow'   // Jaune
         };
         
+        const colorClass = colors[ownerType] || 'blue';
+        
         playerDiv.innerHTML = `
-            <div class="player-color" style="background-color: ${colors[ownerType] || '#888'}"></div>
-            <span class="player-name">${name}</span>
-            ${isHost ? '<span class="host-badge">Hôte</span>' : ''}
-            <span class="player-status">Connecté</span>
+            <div class="player-avatar-lobby ${colorClass}">${avatar}</div>
+            <div class="player-details">
+                <div class="player-name-lobby">${name}</div>
+                <div class="player-status-lobby">Connecté</div>
+            </div>
+            <div class="player-badges">
+                ${isHost ? '<span class="host-badge">Hôte</span>' : ''}
+            </div>
         `;
         
         playersList.appendChild(playerDiv);

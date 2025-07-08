@@ -10,6 +10,16 @@ class Game {
         this.sendPercentage = 50;
         this.backgroundSprites = [];
         
+        // Sélection par rectangle
+        this.isSelecting = false;
+        this.wasSelecting = false;
+        this.selectionStart = null;
+        this.selectionEnd = null;
+        this.selectionRect = null;
+        
+        // Bâtiment survolé
+        this.hoveredBuilding = null;
+        
         // Canvas pour pré-générer le terrain
         this.terrainCanvas = null;
         this.terrainGenerated = false;
@@ -34,12 +44,16 @@ class Game {
         this.backgroundTimer = null;
         this.backgroundInterval = null;
         
+        // Système de profil
+        this.playerProfile = this.loadProfile();
+        
         this.setupCanvas();
         this.loadBackground();
         this.setupEventListeners();
         this.setupMenuListeners();
         this.setupAudioControls();
         this.setupVisibilityHandlers();
+        this.setupProfileSystem();
         
         // Initialiser le multijoueur après un délai pour s'assurer que tout est chargé
         setTimeout(() => {
@@ -474,12 +488,189 @@ class Game {
     }
 
     setupEventListeners() {
+        // Désactiver le menu contextuel sur le canvas
+        this.canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Gestion du clic gauche
         this.canvas.addEventListener('click', (e) => {
+            // Empêcher le traitement du clic si on était en train de faire une sélection par rectangle
+            if (this.wasSelecting) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
             const rect = this.canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
             
-            this.handleClick(x, y);
+            this.handleClick(x, y, e);
+        });
+        
+
+        // Gestion unifiée du mousedown pour sélection et attaque
+        this.canvas.addEventListener('mousedown', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            
+            if (e.button === 0) { // Clic gauche - sélection
+                // Vérifier si on clique sur un bâtiment du joueur
+                const localPlayerOwner = this.getLocalPlayerOwner();
+                const clickedBuilding = this.buildings.find(building => {
+                    const distance = Math.sqrt((building.x - x * scaleX) ** 2 + (building.y - y * scaleY) ** 2);
+                    return distance < 40 && building.owner === localPlayerOwner;
+                });
+                
+                // Si on ne clique pas sur un bâtiment et qu'on n'a pas Ctrl/Cmd enfoncé, commencer la sélection par rectangle
+                if (!clickedBuilding && !e.ctrlKey && !e.metaKey) {
+                    this.isSelecting = true;
+                    this.selectionStart = { x: x * scaleX, y: y * scaleY };
+                    this.selectionEnd = { x: x * scaleX, y: y * scaleY };
+                    console.log(`Début de sélection rectangle à: ${x * scaleX}, ${y * scaleY}`);
+                    
+                    // Empêcher la propagation pour éviter le clic normal
+                    e.stopPropagation();
+                }
+            } else if (e.button === 2) { // Clic droit - attaque
+                e.preventDefault();
+                
+                // Trouver le bâtiment cible
+                const targetBuilding = this.buildings.find(building => {
+                    const distance = Math.sqrt((building.x - x * scaleX) ** 2 + (building.y - y * scaleY) ** 2);
+                    return distance < 40;
+                });
+                
+                // Si on a une cible et des bâtiments sélectionnés, attaquer directement
+                if (targetBuilding && this.selectedBuildings.length > 0 && !this.selectedBuildings.includes(targetBuilding)) {
+                    console.log(`Clic droit sur ${targetBuilding.owner} - Attaque!`);
+                    this.targetBuilding = targetBuilding;
+                    this.sendUnitsFromSelected();
+                }
+            }
+        });
+        
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            
+            if (this.isSelecting) {
+                this.selectionEnd = { x: x * scaleX, y: y * scaleY };
+                
+                // Calculer le rectangle de sélection
+                this.selectionRect = {
+                    x: Math.min(this.selectionStart.x, this.selectionEnd.x),
+                    y: Math.min(this.selectionStart.y, this.selectionEnd.y),
+                    width: Math.abs(this.selectionEnd.x - this.selectionStart.x),
+                    height: Math.abs(this.selectionEnd.y - this.selectionStart.y)
+                };
+                
+                // Log pour debug
+                if (this.selectionRect.width > 5 && this.selectionRect.height > 5) {
+                    console.log(`Rectangle en cours: ${this.selectionRect.x}, ${this.selectionRect.y}, ${this.selectionRect.width}x${this.selectionRect.height}`);
+                }
+            }
+            
+            // Mettre à jour le curseur et le bâtiment survolé
+            this.hoveredBuilding = this.buildings.find(building => {
+                const distance = Math.sqrt((building.x - x * scaleX) ** 2 + (building.y - y * scaleY) ** 2);
+                return distance < 40;
+            });
+            
+            if (this.hoveredBuilding && this.selectedBuildings.length > 0 && !this.selectedBuildings.includes(this.hoveredBuilding)) {
+                // Curseur d'attaque si on peut attaquer
+                this.canvas.style.cursor = 'crosshair';
+            } else if (this.hoveredBuilding && this.canPlayerControl(this.hoveredBuilding)) {
+                // Curseur de sélection pour nos bâtiments
+                this.canvas.style.cursor = 'pointer';
+            } else {
+                // Curseur par défaut
+                this.canvas.style.cursor = 'default';
+            }
+        });
+        
+        this.canvas.addEventListener('mouseup', (e) => {
+            if (this.isSelecting && e.button === 0) {
+                this.isSelecting = false;
+                this.wasSelecting = true;
+                
+                // Sélectionner tous les bâtiments du joueur dans le rectangle
+                if (this.selectionRect && this.selectionRect.width > 5 && this.selectionRect.height > 5) {
+                    const localPlayerOwner = this.getLocalPlayerOwner();
+                    
+                    console.log(`Sélection rectangle: ${this.selectionRect.x}, ${this.selectionRect.y}, ${this.selectionRect.width}x${this.selectionRect.height}`);
+                    console.log(`Recherche de bâtiments du joueur: ${localPlayerOwner}`);
+                    
+                    // Ne pas appeler clearSelection qui réinitialise tout, juste désélectionner les bâtiments
+                    this.selectedBuildings.forEach(building => {
+                        building.selected = false;
+                    });
+                    this.selectedBuildings = [];
+                    
+                    // Puis sélectionner les bâtiments dans le rectangle
+                    let playersBuildings = this.buildings.filter(b => b.owner === localPlayerOwner);
+                    console.log(`Bâtiments du joueur (${localPlayerOwner}): ${playersBuildings.length}`);
+                    
+                    this.buildings.forEach(building => {
+                        if (building.owner === localPlayerOwner) {
+                            const inRect = building.x >= this.selectionRect.x &&
+                                   building.x <= this.selectionRect.x + this.selectionRect.width &&
+                                   building.y >= this.selectionRect.y &&
+                                   building.y <= this.selectionRect.y + this.selectionRect.height;
+                            
+                            if (inRect) {
+                                console.log(`Bâtiment sélectionné: ${building.owner} à ${building.x}, ${building.y}`);
+                                building.selected = true;
+                                this.selectedBuildings.push(building);
+                            }
+                        }
+                    });
+                    
+                    console.log(`${this.selectedBuildings.length} bâtiments sélectionnés`);
+                    
+                    this.updateSelectedBuildingInfo();
+                    this.updateUI();
+                }
+                
+                this.selectionRect = null;
+                this.selectionStart = null;
+                this.selectionEnd = null;
+                
+                // Réinitialiser wasSelecting après un court délai
+                setTimeout(() => {
+                    this.wasSelecting = false;
+                }, 200);
+            }
+        });
+        
+        // Double-clic pour sélectionner tous les bâtiments du même type
+        this.canvas.addEventListener('dblclick', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            
+            const clickedBuilding = this.buildings.find(building => {
+                const distance = Math.sqrt((building.x - x * scaleX) ** 2 + (building.y - y * scaleY) ** 2);
+                return distance < 40;
+            });
+            
+            if (clickedBuilding && clickedBuilding.owner === 'player') {
+                const buildingType = clickedBuilding.getBuildingType();
+                this.selectedBuildings = this.buildings.filter(building => 
+                    building.owner === 'player' && building.getBuildingType() === buildingType
+                );
+                this.updateSelectedBuildingInfo();
+            }
         });
 
         this.canvas.addEventListener('wheel', (e) => {
@@ -492,16 +683,18 @@ class Game {
             this.updateUI();
         });
 
-        document.getElementById('sendBtn').addEventListener('click', () => {
-            if (this.selectedBuildings.length > 0 && this.targetBuilding) {
-                this.selectedBuildings.forEach(building => {
-                    // Envoyer l'action au réseau si multijoueur
-                    if (this.isMultiplayer) {
-                        const sourceId = this.buildings.indexOf(building);
-                        const targetId = this.buildings.indexOf(this.targetBuilding);
-                        this.sendMultiplayerAction({
-                            type: 'send_units',
-                            sourceId: sourceId,
+        const sendBtn = document.getElementById('sendBtn');
+        if (sendBtn) {
+            sendBtn.addEventListener('click', () => {
+                if (this.selectedBuildings.length > 0 && this.targetBuilding) {
+                    this.selectedBuildings.forEach(building => {
+                        // Envoyer l'action au réseau si multijoueur
+                        if (this.isMultiplayer) {
+                            const sourceId = this.buildings.indexOf(building);
+                            const targetId = this.buildings.indexOf(this.targetBuilding);
+                            this.sendMultiplayerAction({
+                                type: 'send_units',
+                                sourceId: sourceId,
                             targetId: targetId,
                             percentage: this.sendPercentage
                         });
@@ -510,11 +703,12 @@ class Game {
                     }
                 });
                 
-                // Réinitialiser les sélections après envoi
-                this.targetBuilding = null;
-                this.clearSelection();
-            }
-        });
+                    // Réinitialiser les sélections après envoi
+                    this.targetBuilding = null;
+                    this.clearSelection();
+                }
+            });
+        }
 
         document.getElementById('restartBtn').addEventListener('click', () => {
             this.restart();
@@ -557,9 +751,75 @@ class Game {
         window.addEventListener('resize', () => {
             this.handleResize();
         });
+        
+        // Raccourcis clavier
+        document.addEventListener('keydown', (e) => {
+            if (this.gameStarted && !this.gameOver) {
+                // Ctrl/Cmd + A : Sélectionner tous les bâtiments du joueur
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    this.selectAllPlayerBuildings();
+                }
+                
+                // Touche 1-9 : Sélectionner des groupes de contrôle
+                if (e.key >= '1' && e.key <= '9') {
+                    const groupNum = parseInt(e.key);
+                    if (e.ctrlKey || e.metaKey) {
+                        // Ctrl + 1-9 : Créer un groupe de contrôle
+                        this.createControlGroup(groupNum);
+                    } else {
+                        // 1-9 : Sélectionner un groupe de contrôle
+                        this.selectControlGroup(groupNum);
+                    }
+                }
+            }
+        });
+    }
+    
+    selectAllPlayerBuildings() {
+        this.clearSelection();
+        const localPlayerOwner = this.getLocalPlayerOwner();
+        this.selectedBuildings = this.buildings.filter(building => building.owner === localPlayerOwner);
+        this.selectedBuildings.forEach(building => {
+            building.selected = true;
+        });
+        this.updateSelectedBuildingInfo();
+        this.updateUI();
+    }
+    
+    createControlGroup(groupNum) {
+        if (!this.controlGroups) {
+            this.controlGroups = {};
+        }
+        
+        if (this.selectedBuildings.length > 0) {
+            this.controlGroups[groupNum] = [...this.selectedBuildings];
+            console.log(`Groupe de contrôle ${groupNum} créé avec ${this.selectedBuildings.length} bâtiments`);
+        }
+    }
+    
+    selectControlGroup(groupNum) {
+        if (this.controlGroups && this.controlGroups[groupNum]) {
+            this.clearSelection();
+            this.controlGroups[groupNum].forEach(building => {
+                // Vérifier que le bâtiment existe toujours et appartient toujours au joueur
+                if (this.buildings.includes(building) && this.canPlayerControl(building)) {
+                    building.selected = true;
+                    this.selectedBuildings.push(building);
+                }
+            });
+            this.updateSelectedBuildingInfo();
+            this.updateUI();
+        }
     }
 
-    handleClick(x, y) {
+    handleClick(x, y, event) {
+        // Ne pas traiter le clic si on était en train de faire une sélection par rectangle
+        if (this.wasSelecting) {
+            this.wasSelecting = false;
+            return;
+        }
+        
         // Ajuster les coordonnées en fonction du scaling du canvas
         const rect = this.canvas.getBoundingClientRect();
         const scaleX = this.canvas.width / rect.width;
@@ -595,28 +855,31 @@ class Game {
         const clickedBuilding = this.buildings.find(building => building.isPointInside(adjustedX, adjustedY));
         
         if (clickedBuilding) {
-            if (this.selectedBuildings.length > 0 && !this.selectedBuildings.includes(clickedBuilding)) {
-                // Définir la cible
-                this.targetBuilding = clickedBuilding;
-                this.updateUI();
-            } else if (this.canPlayerControl(clickedBuilding)) {
-                // Sélectionner/désélectionner un bâtiment du joueur
-                // IMPORTANT: Les sélections sont LOCALES, pas partagées!
-                if (clickedBuilding.selected) {
-                    // Désélectionner si déjà sélectionné
-                    clickedBuilding.selected = false;
-                    this.selectedBuildings = this.selectedBuildings.filter(b => b !== clickedBuilding);
+            // Clic gauche sert uniquement à sélectionner les bâtiments du joueur
+            if (this.canPlayerControl(clickedBuilding)) {
+                const isCtrlPressed = event && (event.ctrlKey || event.metaKey);
+                
+                if (isCtrlPressed) {
+                    // Ctrl/Cmd + Clic : ajouter ou retirer de la sélection
+                    if (clickedBuilding.selected) {
+                        clickedBuilding.selected = false;
+                        this.selectedBuildings = this.selectedBuildings.filter(b => b !== clickedBuilding);
+                    } else {
+                        clickedBuilding.selected = true;
+                        this.selectedBuildings.push(clickedBuilding);
+                    }
                 } else {
-                    // Ajouter à la sélection
+                    // Clic simple : remplacer la sélection
+                    this.clearSelection();
                     clickedBuilding.selected = true;
-                    this.selectedBuildings.push(clickedBuilding);
+                    this.selectedBuildings = [clickedBuilding];
                 }
                 
-                // PAS de synchronisation des sélections - elles restent locales
+                this.updateSelectedBuildingInfo();
                 this.updateUI();
             }
-        } else {
-            // Clic dans le vide = tout désélectionner
+        } else if (!event || (!event.ctrlKey && !event.metaKey)) {
+            // Clic dans le vide sans Ctrl = tout désélectionner
             this.clearSelection();
         }
     }
@@ -630,24 +893,62 @@ class Game {
         this.updateUI();
         console.log('Sélections nettoyées');
     }
+    
+    sendUnitsFromSelected() {
+        if (this.selectedBuildings.length === 0 || !this.targetBuilding) return;
+        
+        console.log(`Envoi d'unités vers ${this.targetBuilding.owner} depuis ${this.selectedBuildings.length} bâtiment(s)`);
+        
+        // Envoyer les unités depuis chaque bâtiment sélectionné
+        this.selectedBuildings.forEach(building => {
+            if (building.units > 0) {
+                building.sendUnits(this.targetBuilding, this.sendPercentage, this);
+            }
+        });
+        
+        // Réinitialiser la cible après l'envoi
+        this.targetBuilding = null;
+        this.updateUI();
+    }
+    
+    updateSelectedBuildingInfo() {
+        const selectedInfo = document.getElementById('selectedBuildingInfo');
+        if (this.selectedBuildings.length > 0) {
+            const totalUnits = this.selectedBuildings.reduce((sum, building) => sum + building.units, 0);
+            const buildingTypes = {};
+            
+            // Compter les types de bâtiments
+            this.selectedBuildings.forEach(building => {
+                const type = building.getBuildingType();
+                buildingTypes[type] = (buildingTypes[type] || 0) + 1;
+            });
+            
+            // Créer le texte descriptif
+            let description = `${this.selectedBuildings.length} bâtiment${this.selectedBuildings.length > 1 ? 's' : ''} (${totalUnits} unités)`;
+            
+            // Afficher le détail si plusieurs types
+            const types = Object.entries(buildingTypes);
+            if (types.length > 1 || this.selectedBuildings.length > 3) {
+                const details = types.map(([type, count]) => `${count} ${type}`).join(', ');
+                description += ` - ${details}`;
+            }
+            
+            selectedInfo.textContent = description;
+        }
+    }
 
     updateUI() {
         const selectedInfo = document.getElementById('selectedBuildingInfo');
         const sendBtn = document.getElementById('sendBtn');
         const percentageInfo = document.getElementById('percentageInfo');
         
-        if (this.selectedBuildings.length > 0 && this.targetBuilding) {
-            const totalUnits = this.selectedBuildings.reduce((sum, building) => sum + building.units, 0);
-            const unitsToSend = Math.floor(totalUnits * (this.sendPercentage / 100));
-            selectedInfo.textContent = `Envoyer ${unitsToSend} unités (${this.selectedBuildings.length} bâtiments)`;
-            sendBtn.disabled = false;
-        } else if (this.selectedBuildings.length > 0) {
+        if (this.selectedBuildings.length > 0) {
             const totalUnits = this.selectedBuildings.reduce((sum, building) => sum + building.units, 0);
             selectedInfo.textContent = `${this.selectedBuildings.length} bâtiment(s) sélectionné(s): ${totalUnits} unités`;
-            sendBtn.disabled = true;
+            sendBtn.style.display = 'none'; // Cacher le bouton car on utilise le clic droit
         } else {
-            selectedInfo.textContent = 'Cliquez sur vos bâtiments (clic = ajouter/retirer)';
-            sendBtn.disabled = true;
+            selectedInfo.textContent = 'Sélectionnez vos bâtiments (clic gauche ou glisser)';
+            sendBtn.style.display = 'none';
         }
         
         percentageInfo.textContent = `${this.sendPercentage}%`;
@@ -1342,6 +1643,51 @@ class Game {
             });
             this.ctx.setLineDash([]);
         }
+        
+        // Dessiner le rectangle de sélection
+        if (this.isSelecting && this.selectionRect) {
+            this.ctx.strokeStyle = '#4FC3F7';
+            this.ctx.lineWidth = 2;
+            this.ctx.fillStyle = 'rgba(79, 195, 247, 0.1)';
+            
+            // Remplir le rectangle
+            this.ctx.fillRect(
+                this.selectionRect.x,
+                this.selectionRect.y,
+                this.selectionRect.width,
+                this.selectionRect.height
+            );
+            
+            // Dessiner le contour
+            this.ctx.strokeRect(
+                this.selectionRect.x,
+                this.selectionRect.y,
+                this.selectionRect.width,
+                this.selectionRect.height
+            );
+        }
+        
+        // Dessiner l'indicateur de cible survolée
+        if (this.hoveredBuilding && this.selectedBuildings.length > 0 && !this.selectedBuildings.includes(this.hoveredBuilding)) {
+            // Dessiner un cercle rouge autour du bâtiment cible potentiel
+            this.ctx.save();
+            this.ctx.strokeStyle = '#FF0000';
+            this.ctx.lineWidth = 3;
+            this.ctx.globalAlpha = 0.7;
+            this.ctx.beginPath();
+            this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 50, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            // Petite animation de pulsation
+            const pulse = Math.sin(Date.now() * 0.003) * 5;
+            this.ctx.lineWidth = 2;
+            this.ctx.globalAlpha = 0.4;
+            this.ctx.beginPath();
+            this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 55 + pulse, 0, Math.PI * 2);
+            this.ctx.stroke();
+            
+            this.ctx.restore();
+        }
     }
 
     gameLoop() {
@@ -1833,5 +2179,184 @@ class Game {
             
             return true; // Continuer à afficher
         });
+    }
+    
+    // ===== SYSTÈME DE PROFIL =====
+    
+    loadProfile() {
+        // Charger le profil depuis localStorage ou créer un profil par défaut
+        const defaultProfile = {
+            name: 'Joueur',
+            avatar: '👤'
+        };
+        
+        try {
+            const savedProfile = localStorage.getItem('towerRushProfile');
+            if (savedProfile) {
+                const profile = JSON.parse(savedProfile);
+                // Valider les données
+                if (profile.name && profile.avatar) {
+                    return profile;
+                }
+            }
+        } catch (error) {
+            console.warn('Erreur lors du chargement du profil:', error);
+        }
+        
+        return defaultProfile;
+    }
+    
+    saveProfile(profile) {
+        try {
+            this.playerProfile = profile;
+            localStorage.setItem('towerRushProfile', JSON.stringify(profile));
+            this.updateProfileDisplay();
+            console.log('Profil sauvegardé:', profile);
+        } catch (error) {
+            console.error('Erreur lors de la sauvegarde du profil:', error);
+        }
+    }
+    
+    updateProfileDisplay() {
+        // Mettre à jour l'affichage du profil dans l'interface
+        const profileName = document.getElementById('profileName');
+        const profileAvatar = document.getElementById('profileAvatar');
+        
+        if (profileName) {
+            profileName.textContent = this.playerProfile.name;
+        }
+        
+        if (profileAvatar) {
+            profileAvatar.textContent = this.playerProfile.avatar;
+        }
+    }
+    
+    setupProfileSystem() {
+        // Initialiser l'affichage du profil
+        this.updateProfileDisplay();
+        
+        // Écouteurs d'événements pour le système de profil
+        const profileCard = document.getElementById('profileCard');
+        const profileEditBtn = document.getElementById('profileEditBtn');
+        const profileModal = document.getElementById('profileModal');
+        const profileModalClose = document.getElementById('profileModalClose');
+        const profileCancelBtn = document.getElementById('profileCancelBtn');
+        const profileSaveBtn = document.getElementById('profileSaveBtn');
+        const profileNameInput = document.getElementById('profileNameInput');
+        const avatarOptions = document.querySelectorAll('.avatar-option');
+        
+        let selectedAvatar = this.playerProfile.avatar;
+        
+        // Ouvrir le modal de profil
+        const openProfileModal = () => {
+            profileNameInput.value = this.playerProfile.name;
+            selectedAvatar = this.playerProfile.avatar;
+            
+            // Mettre à jour la sélection d'avatar
+            avatarOptions.forEach(option => {
+                option.classList.remove('selected');
+                if (option.dataset.avatar === selectedAvatar) {
+                    option.classList.add('selected');
+                }
+            });
+            
+            profileModal.style.display = 'flex';
+        };
+        
+        // Fermer le modal de profil
+        const closeProfileModal = () => {
+            profileModal.style.display = 'none';
+        };
+        
+        // Sauvegarder le profil
+        const saveProfile = () => {
+            const newName = profileNameInput.value.trim();
+            
+            if (!newName) {
+                alert('Veuillez entrer un nom valide');
+                return;
+            }
+            
+            if (newName.length > 20) {
+                alert('Le nom ne peut pas dépasser 20 caractères');
+                return;
+            }
+            
+            const newProfile = {
+                name: newName,
+                avatar: selectedAvatar
+            };
+            
+            this.saveProfile(newProfile);
+            closeProfileModal();
+        };
+        
+        // Gestionnaires d'événements
+        if (profileCard) {
+            profileCard.addEventListener('click', openProfileModal);
+        }
+        
+        if (profileEditBtn) {
+            profileEditBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openProfileModal();
+            });
+        }
+        
+        if (profileModalClose) {
+            profileModalClose.addEventListener('click', closeProfileModal);
+        }
+        
+        if (profileCancelBtn) {
+            profileCancelBtn.addEventListener('click', closeProfileModal);
+        }
+        
+        if (profileSaveBtn) {
+            profileSaveBtn.addEventListener('click', saveProfile);
+        }
+        
+        // Fermer le modal en cliquant à l'extérieur
+        if (profileModal) {
+            profileModal.addEventListener('click', (e) => {
+                if (e.target === profileModal) {
+                    closeProfileModal();
+                }
+            });
+        }
+        
+        // Sélection d'avatar
+        avatarOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                avatarOptions.forEach(opt => opt.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedAvatar = option.dataset.avatar;
+            });
+        });
+        
+        // Validation du nom en temps réel
+        if (profileNameInput) {
+            profileNameInput.addEventListener('input', () => {
+                const value = profileNameInput.value;
+                if (value.length > 20) {
+                    profileNameInput.value = value.substring(0, 20);
+                }
+            });
+            
+            // Sauvegarder avec Entrée
+            profileNameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    saveProfile();
+                }
+            });
+        }
+    }
+    
+    getPlayerProfileForMultiplayer() {
+        // Retourner les informations de profil pour le multijoueur
+        return {
+            name: this.playerProfile.name,
+            avatar: this.playerProfile.avatar,
+            id: this.multiplayerManager ? this.multiplayerManager.myPlayerId : null
+        };
     }
 }
