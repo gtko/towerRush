@@ -1,52 +1,152 @@
 name: Deploy to BunnyCDN
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - master
-      - main
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   deploy:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Deploy to BunnyCDN Storage
+      env:
+        BUNNY_STORAGE_ZONE: ${{ secrets.BUNNY_STORAGE_ZONE }}
+        BUNNY_STORAGE_PASSWORD: ${{ secrets.BUNNY_STORAGE_PASSWORD }}
+        BUNNY_STORAGE_ENDPOINT: ${{ secrets.BUNNY_STORAGE_ENDPOINT }}
+      run: |
+        # Debug: Check if variables are set
+        echo "BUNNY_STORAGE_ZONE: ${BUNNY_STORAGE_ZONE:+SET}"
+        echo "BUNNY_STORAGE_PASSWORD: ${BUNNY_STORAGE_PASSWORD:+SET}"
+        echo "BUNNY_STORAGE_ENDPOINT: ${BUNNY_STORAGE_ENDPOINT:+SET}"
         
-      - name: Deploy to BunnyCDN Storage
-        run: |
-          # Upload all files to BunnyCDN storage zone
-          find . -type f -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.gif" -o -name "*.svg" -o -name "*.ico" | while read file; do
-            # Remove leading ./ from file path
-            filepath=${file#./}
-            # Skip .git and .github directories
-            if [[ ! "$filepath" =~ ^\.git ]]; then
-              echo "Uploading $filepath"
+        # Exit if any required variable is missing
+        if [ -z "$BUNNY_STORAGE_ZONE" ] || [ -z "$BUNNY_STORAGE_PASSWORD" ] || [ -z "$BUNNY_STORAGE_ENDPOINT" ]; then
+          echo "ERROR: One or more required secrets are not set!"
+          echo "Please configure the following secrets in your GitHub repository:"
+          echo "- BUNNY_STORAGE_ZONE"
+          echo "- BUNNY_STORAGE_PASSWORD"
+          echo "- BUNNY_STORAGE_ENDPOINT"
+          exit 1
+        fi
+        
+        # Install curl if not available
+        which curl || sudo apt-get update && sudo apt-get install -y curl
+        
+        # Function to upload files recursively
+        upload_directory() {
+          local local_path=$1
+          local remote_path=$2
+          
+          # Create directory if it doesn't exist
+          echo "Creating directory: $remote_path"
+          curl -X MKCOL \
+            -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+            --fail-with-body \
+            "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}${remote_path}" || true
+          
+          # Upload files in current directory
+          for file in "$local_path"/*; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading: $file to ${remote_path}${filename}"
               curl -X PUT \
-                -H "AccessKey: ${{ secrets.BUNNYCDN_STORAGE_API_KEY }}" \
-                -H "Content-Type: application/octet-stream" \
+                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+                -H "Content-Type: $(file -b --mime-type "$file")" \
                 --data-binary "@$file" \
-                "https://${{ secrets.BUNNYCDN_STORAGE_ZONE }}.storage.bunnycdn.com/${{ secrets.BUNNYCDN_STORAGE_PATH }}/$filepath"
+                --fail-with-body \
+                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}${remote_path}${filename}"
+            elif [ -d "$file" ]; then
+              dirname=$(basename "$file")
+              upload_directory "$file" "${remote_path}${dirname}/"
             fi
           done
-          
-      - name: Purge BunnyCDN Cache
-        run: |
-          curl -X POST \
-            -H "AccessKey: ${{ secrets.BUNNYCDN_API_KEY }}" \
+        }
+        
+        # Clear existing content (optional - remove if you want to keep old files)
+        echo "Clearing existing content..."
+        curl -X DELETE \
+          -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/" || true
+        
+        # Upload all game files
+        echo "Starting upload..."
+        
+        # Upload HTML files
+        for file in *.html; do
+          if [ -f "$file" ]; then
+            echo "Uploading: $file"
+            curl -X PUT \
+              -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+              -H "Content-Type: text/html" \
+              --data-binary "@$file" \
+              --fail-with-body \
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+          fi
+        done
+        
+        # Upload CSS files
+        for file in *.css; do
+          if [ -f "$file" ]; then
+            echo "Uploading: $file"
+            curl -X PUT \
+              -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+              -H "Content-Type: text/css" \
+              --data-binary "@$file" \
+              --fail-with-body \
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+          fi
+        done
+        
+        # Upload JS files
+        for file in *.js; do
+          if [ -f "$file" ]; then
+            echo "Uploading: $file"
+            curl -X PUT \
+              -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+              -H "Content-Type: application/javascript" \
+              --data-binary "@$file" \
+              --fail-with-body \
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+          fi
+        done
+        
+        # Upload manifest.json
+        if [ -f "manifest.json" ]; then
+          echo "Uploading: manifest.json"
+          curl -X PUT \
+            -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
             -H "Content-Type: application/json" \
-            "https://api.bunny.net/pullzone/${{ secrets.BUNNYCDN_PULLZONE_ID }}/purgeCache"
-            
-      - name: Trigger Release Workflow
-        uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.actions.createWorkflowDispatch({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'create-release.yml',
-              ref: 'master'
-            });
+            --data-binary "@manifest.json" \
+            --fail-with-body \
+            "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/manifest.json"
+        fi
+        
+        # Upload directories
+        upload_directory "src" "/src/"
+        upload_directory "assets" "/assets/"
+        
+        echo "Upload completed!"
+
+    - name: Purge BunnyCDN Cache
+      env:
+        BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
+        BUNNY_PULL_ZONE_ID: ${{ secrets.BUNNY_PULL_ZONE_ID }}
+      run: |
+        echo "Purging CDN cache..."
+        curl -X POST \
+          -H "AccessKey: $BUNNY_API_KEY" \
+          --fail-with-body \
+          "https://api.bunny.net/pullzone/${BUNNY_PULL_ZONE_ID}/purgeCache"
+        echo "Cache purged successfully!"
+
+    - name: Deploy Summary
+      run: |
+        echo "🚀 Deployment completed!"
+        echo "📦 Files uploaded to BunnyCDN Storage Zone: ${{ secrets.BUNNY_STORAGE_ZONE }}"
+        echo "🌐 Your site should be available at your configured BunnyCDN URL"
+        echo "⏰ Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
