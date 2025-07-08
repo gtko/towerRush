@@ -15,7 +15,9 @@
       "Bash(git rm:*)",
       "Bash(cd:*)",
       "Bash(npx acorn:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(mv:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

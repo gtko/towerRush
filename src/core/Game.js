@@ -755,10 +755,18 @@ class Game {
         // Raccourcis clavier
         document.addEventListener('keydown', (e) => {
             if (this.gameStarted && !this.gameOver) {
-                // Ctrl/Cmd + A : Sélectionner tous les bâtiments du joueur
-                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                // Ctrl/Cmd + A ou simplement A : Sélectionner tous les bâtiments du joueur
+                if ((e.key === 'a' || e.key === 'A') && !e.shiftKey && !e.altKey) {
                     e.preventDefault();
                     this.selectAllPlayerBuildings();
+                }
+                
+                // Touche D : Désélectionner tous les bâtiments
+                if (e.key === 'd' || e.key === 'D') {
+                    e.preventDefault();
+                    this.clearSelection();
+                    this.updateSelectedBuildingInfo();
+                    this.updateUI();
                 }
                 
                 // Touche 1-9 : Sélectionner des groupes de contrôle
@@ -1668,25 +1676,45 @@ class Game {
         }
         
         // Dessiner l'indicateur de cible survolée
-        if (this.hoveredBuilding && this.selectedBuildings.length > 0 && !this.selectedBuildings.includes(this.hoveredBuilding)) {
-            // Dessiner un cercle rouge autour du bâtiment cible potentiel
-            this.ctx.save();
-            this.ctx.strokeStyle = '#FF0000';
-            this.ctx.lineWidth = 3;
-            this.ctx.globalAlpha = 0.7;
-            this.ctx.beginPath();
-            this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 50, 0, Math.PI * 2);
-            this.ctx.stroke();
+        if (this.hoveredBuilding && this.selectedBuildings.length > 0) {
+            if (!this.selectedBuildings.includes(this.hoveredBuilding)) {
+                if (this.canPlayerControl(this.hoveredBuilding)) {
+                    // Cercle vert pour les renforts (bâtiment allié)
+                    this.ctx.save();
+                    this.ctx.strokeStyle = '#00FF00';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.globalAlpha = 0.7;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 50, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                    
+                    // Texte "RENFORT"
+                    this.ctx.font = 'bold 14px Arial';
+                    this.ctx.fillStyle = '#00FF00';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillText('RENFORT', this.hoveredBuilding.x, this.hoveredBuilding.y - 60);
+                    this.ctx.restore();
+                } else {
+                    // Cercle rouge pour les cibles (bâtiment ennemi)
+                    this.ctx.save();
+                    this.ctx.strokeStyle = '#FF0000';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.globalAlpha = 0.7;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 50, 0, Math.PI * 2);
+                    this.ctx.stroke();
             
-            // Petite animation de pulsation
-            const pulse = Math.sin(Date.now() * 0.003) * 5;
-            this.ctx.lineWidth = 2;
-            this.ctx.globalAlpha = 0.4;
-            this.ctx.beginPath();
-            this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 55 + pulse, 0, Math.PI * 2);
-            this.ctx.stroke();
-            
-            this.ctx.restore();
+                    // Petite animation de pulsation
+                    const pulse = Math.sin(Date.now() * 0.003) * 5;
+                    this.ctx.lineWidth = 2;
+                    this.ctx.globalAlpha = 0.4;
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.hoveredBuilding.x, this.hoveredBuilding.y, 55 + pulse, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                    
+                    this.ctx.restore();
+                }
+            }
         }
     }
 
