@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Rush</title>
+    <link rel="stylesheet" href="modern-style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FFD700">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+</head>
+<body>
+    <div class="menu-screen" id="menuScreen">
+        <!-- Logo en overlay -->
+        <div class="logo-overlay">
+            <img src="assets/logo.png" alt="Tower Rush" class="logo-overlay-img">
+        </div>
+        
+        <!-- Section Profil -->
+        <div class="profile-section">
+            <div class="profile-card" id="profileCard">
+                <div class="profile-avatar" id="profileAvatar">👤</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profileName">Joueur</div>
+                    <button class="profile-edit-btn" id="profileEditBtn">Modifier</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="menu-content">
+            <!-- Section Solo -->
+            <div class="menu-section">
+                <h2 class="section-title">Solo</h2>
+                <div class="solo-options">
+                    <div class="inline-settings">
+                        <div class="inline-group">
+                            <label>Adversaires:</label>
+                            <div class="button-group compact">
+                                <button class="option-btn active" data-players="2">1</button>
+                                <button class="option-btn" data-players="3">2</button>
+                                <button class="option-btn" data-players="4">3</button>
+                            </div>
+                        </div>
+                        <div class="inline-group">
+                            <label>Difficulté:</label>
+                            <div class="button-group compact">
+                                <button class="option-btn" data-difficulty="easy">Facile</button>
+                                <button class="option-btn active" data-difficulty="medium">Moyen</button>
+                                <button class="option-btn" data-difficulty="hard">Difficile</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="quickPlayBtn" class="btn btn-primary btn-action">
+                        <span class="btn-icon">⚔️</span>
+                        <span>Jouer Solo</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="menu-divider"></div>
+            
+            <!-- Section Multijoueur -->
+            <div class="menu-section">
+                <h2 class="section-title">Multijoueur</h2>
+                <div class="multiplayer-buttons">
+                    <button id="hostGameBtn" class="btn btn-secondary btn-action">
+                        <span class="btn-icon">🏰</span>
+                        <span>Créer une partie</span>
+                    </button>
+                    <div class="join-section">
+                        <input type="text" id="roomCode" placeholder="Code de la salle" class="room-code-input">
+                        <button id="joinBtn" class="btn btn-secondary btn-compact">
+                            <span class="btn-icon">🚪</span>
+                            <span>Rejoindre</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="connectionStatus" class="status-text"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Écran de chargement du jeu -->
+    <div class="game-loading-screen" id="gameLoadingScreen" style="display: none;">
+        <div class="loading-content">
+            <img src="assets/banniere.png" alt="Tower Rush" class="loading-banner">
+            <div class="loading-info">
+                <h2>Préparation de la bataille...</h2>
+                <div class="loading-bar large">
+                    <div class="loading-progress"></div>
+                </div>
+                <p class="loading-tip" id="loadingTip">Astuce: Les châteaux produisent 2 unités par seconde!</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lobby multijoueur -->
+    <div class="lobby-screen" id="lobbyScreen" style="display: none;">
+        <!-- Logo en overlay -->
+        <div class="lobby-logo">
+            <img src="assets/logo.png" alt="Tower Rush" class="lobby-logo-img">
+        </div>
+        
+        <div class="lobby-content">
+            <div class="lobby-header">
+                <div class="lobby-info">
+                    <div class="room-code-badge">
+                        <span>Code:</span>
+                        <span id="lobbyRoomCode"></span>
+                    </div>
+                </div>
+                <button id="leaveLobbyBtn" class="btn btn-danger btn-leave">✕ Quitter</button>
+            </div>
+            
+            <div class="lobby-main">
+                <div class="players-section">
+                    <h3 class="section-title">Joueurs connectés</h3>
+                    <div class="players-grid" id="playersList">
+                        <!-- Liste des joueurs sera générée ici -->
+                    </div>
+                    <div class="lobby-controls">
+                        <button id="startGameLobbyBtn" class="btn btn-primary start-game-btn" style="display: none;">Démarrer la partie</button>
+                        <div class="waiting-message" id="waitingMessage" style="display: none;">
+                            En attente que l'hôte démarre la partie...
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-section">
+                    <div class="chat-header">
+                        <h3 class="section-title">Chat</h3>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Messages du chat -->
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chatInput" class="chat-input" placeholder="Tapez votre message..." maxlength="200">
+                        <button id="sendChatBtn" class="chat-send-btn">Envoyer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <div class="game-header">
+            <div class="game-header-content">
+                <button id="backToMenuBtn" class="btn btn-sm btn-secondary back-btn">← Menu</button>
+                <img src="assets/logo.png" alt="Tower Rush" class="game-logo">
+                <div class="game-stats">
+                    <div class="stat-card player">
+                        <span class="stat-label">Joueur</span>
+                        <span class="stat-value" id="playerBuildings">0</span>
+                    </div>
+                    <button id="musicToggleBtn" class="audio-toggle" title="Activer/Désactiver la musique"></button>
+                    <button id="helpBtn" class="help-button" title="Aide">?</button>
+                    <div class="stat-card enemy">
+                        <span class="stat-label">Ennemi</span>
+                        <span class="stat-value" id="enemyBuildings">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-canvas-wrapper">
+            <div class="game-canvas-container">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+        </div>
+        
+        <div class="game-controls">
+            <div class="controls-wrapper">
+                <div class="selected-info">
+                    <div class="selected-icon">🏰</div>
+                    <div class="selected-text" id="selectedBuildingInfo">Sélectionnez un bâtiment</div>
+                </div>
+                <div class="percentage-control">
+                    <span class="percentage-label">Force</span>
+                    <span class="percentage-value" id="percentageInfo">50%</span>
+                    <span class="percentage-hint">(molette)</span>
+                </div>
+                <div class="action-buttons">
+                    <button id="sendBtn" class="btn btn-primary action-btn" disabled>Envoyer</button>
+                    <button id="backToMenuBtn" class="btn btn-secondary action-btn">Menu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver" style="display: none;">
+        <div class="game-over-content">
+            <div class="game-over-icon" id="gameOverIcon">🏆</div>
+            <h2 class="game-over-title" id="gameOverTitle">Fin de Partie</h2>
+            <p class="game-over-message" id="gameOverMessage">Message</p>
+            <div class="game-over-actions">
+                <button id="restartBtn" class="btn btn-primary">Recommencer</button>
+                <button id="menuBtn" class="btn btn-secondary">Menu Principal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de profil -->
+    <div class="profile-modal" id="profileModal" style="display: none;">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <h2>Personnaliser le profil</h2>
+                <button class="profile-modal-close" id="profileModalClose">×</button>
+            </div>
+            
+            <div class="profile-modal-body">
+                <div class="profile-form-group">
+                    <label class="profile-form-label">Nom du joueur</label>
+                    <input type="text" id="profileNameInput" class="profile-name-input" maxlength="20" placeholder="Entrez votre nom">
+                </div>
+                
+                <div class="profile-form-group">
+                    <label class="profile-form-label">Avatar</label>
+                    <div class="avatar-grid">
+                        <div class="avatar-option" data-avatar="👤">👤</div>
+                        <div class="avatar-option" data-avatar="🤴">🤴</div>
+                        <div class="avatar-option" data-avatar="👸">👸</div>
+                        <div class="avatar-option" data-avatar="🧙‍♂️">🧙‍♂️</div>
+                        <div class="avatar-option" data-avatar="🧙‍♀️">🧙‍♀️</div>
+                        <div class="avatar-option" data-avatar="⚔️">⚔️</div>
+                        <div class="avatar-option" data-avatar="🛡️">🛡️</div>
+                        <div class="avatar-option" data-avatar="🏰">🏰</div>
+                        <div class="avatar-option" data-avatar="👑">👑</div>
+                        <div class="avatar-option" data-avatar="🗡️">🗡️</div>
+                        <div class="avatar-option" data-avatar="🏹">🏹</div>
+                        <div class="avatar-option" data-avatar="🪓">🪓</div>
+                        <div class="avatar-option" data-avatar="🔥">🔥</div>
+                        <div class="avatar-option" data-avatar="⭐">⭐</div>
+                        <div class="avatar-option" data-avatar="💎">💎</div>
+                        <div class="avatar-option" data-avatar="🌟">🌟</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-modal-footer">
+                <button class="btn btn-secondary" id="profileCancelBtn">Annuler</button>
+                <button class="btn btn-primary" id="profileSaveBtn">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Panneau d'aide -->
+    <div class="help-panel" id="helpPanel" style="display: none;">
+        <div class="help-content">
+            <button class="help-close" id="helpClose">×</button>
+            <h2 class="help-title">Comment jouer</h2>
+            
+            <div class="help-section">
+                <h3>🎯 Objectif</h3>
+                <p>Conquérir tous les bâtiments ennemis (rouges) pour gagner!</p>
+            </div>
+
+            <div class="help-section">
+                <h3>🏰 Bâtiments</h3>
+                <ul>
+                    <li>Produisent 1 unité/seconde (châteaux: 2 unités/s)</li>
+                    <li>Évoluent avec le nombre d'unités</li>
+                    <li>Cliquez pour sélectionner/désélectionner</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>⚔️ Combat</h3>
+                <ul>
+                    <li><strong>Attaquants:</strong> Lancent toujours 2 dés</li>
+                    <li><strong>Défenseurs:</strong> 1-3 dés selon le rapport de forces
+                        <ul>
+                            <li>1 dé: en infériorité numérique</li>
+                            <li>2 dés: forces équivalentes</li>
+                            <li>3 dés: supériorité 2:1 ou plus</li>
+                        </ul>
+                    </li>
+                    <li>Le meilleur résultat gagne, le perdant perd 1 unité</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>🎮 Contrôles</h3>
+                <ul>
+                    <li><strong>Clic gauche:</strong> Sélectionner un bâtiment</li>
+                    <li><strong>Clic gauche dans le vide:</strong> Désélectionner tout</li>
+                    <li><strong>Clic droit:</strong> Attaque rapide (envoie les unités directement)</li>
+                    <li><strong>Ctrl/Cmd + Clic:</strong> Ajouter/retirer de la sélection</li>
+                    <li><strong>Glisser-déposer:</strong> Sélection par rectangle</li>
+                    <li><strong>Double-clic:</strong> Sélectionner tous les bâtiments du même type</li>
+                    <li><strong>Touche A:</strong> Sélectionner tous vos bâtiments</li>
+                    <li><strong>Touche D:</strong> Désélectionner tous les bâtiments</li>
+                    <li><strong>Ctrl/Cmd + 1-9:</strong> Créer un groupe de contrôle</li>
+                    <li><strong>1-9:</strong> Sélectionner un groupe de contrôle</li>
+                    <li><strong>Molette:</strong> Ajuster le % d'unités à envoyer (10-100%)</li>
+                </ul>
+            </div>
+            
+            <div class="help-section">
+                <h3>🎯 Indicateurs Visuels</h3>
+                <ul>
+                    <li><strong>Cercle rouge:</strong> Bâtiment ennemi (cible d'attaque)</li>
+                    <li><strong>Cercle vert "RENFORT":</strong> Bâtiment allié (envoi de renforts)</li>
+                    <li><strong>Rectangle de sélection:</strong> Zone de sélection multiple</li>
+                    <li><strong>Bordure dorée:</strong> Bâtiments sélectionnés</li>
+                </ul>
+            </div>
+
+            <div class="help-section">
+                <h3>💡 Conseils</h3>
+                <ul>
+                    <li>Attaquez avec supériorité numérique</li>
+                    <li>Défendez vos positions clés</li>
+                    <li>Regroupez vos forces avant d'attaquer</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core classes -->
+    <script src="src/entities/Building.js"></script>
+    <script src="src/entities/UnitGroup.js"></script>
+    <script src="src/multiplayer/MultiplayerManager.js"></script>
+    <script src="src/core/Game.js"></script>
+    
+    <script>
+        // Démarrer le jeu
+        let game;
+        window.addEventListener('load', () => {
+            // Initialiser le jeu directement
+            game = new Game();
+        });
+    </script>
+    
+    <script>
+        // PWA uniquement si servi via HTTP/HTTPS
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker enregistré:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Échec enregistrement Service Worker:', error);
+                    });
+            });
+        } else {
+            console.log('Service Worker non disponible (protocole file:// ou non supporté)');
+        }
+        
+        // Détection PWA installable
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('PWA installable détectée');
+        });
+    </script>
+</body>
+</html>

@@ -3,282 +3,439 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tower Rush</title>
-    <link rel="stylesheet" href="modern-style.css">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#FFD700">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+    <title>Tower Rush - Stratégie Médiévale en Temps Réel</title>
+    <link rel="stylesheet" href="homepage-style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&family=Cinzel:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="menu-screen" id="menuScreen">
-        <!-- Logo en overlay -->
-        <div class="logo-overlay">
-            <img src="assets/logo.png" alt="Tower Rush" class="logo-overlay-img">
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-background">
+            <div class="particles"></div>
         </div>
+        <nav class="navbar" id="navbar">
+            <div class="nav-container">
+                <img src="assets/logo.png" alt="Tower Rush" class="nav-logo">
+                <button class="hamburger" id="hamburger">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <div class="nav-links" id="navLinks">
+                    <a href="#features" class="nav-link">Fonctionnalités</a>
+                    <a href="#gameplay" class="nav-link">Gameplay</a>
+                    <a href="#faq" class="nav-link">FAQ</a>
+                    <a href="#about" class="nav-link">À propos</a>
+                    <a href="game.html" class="btn-play-nav">Jouer Maintenant</a>
+                </div>
+            </div>
+        </nav>
         
-        <div class="menu-content">
-            <!-- Section Solo -->
-            <div class="menu-section">
-                <h2 class="section-title">Solo</h2>
-                <div class="solo-options">
-                    <div class="inline-settings">
-                        <div class="inline-group">
-                            <label>Adversaires:</label>
-                            <div class="button-group compact">
-                                <button class="option-btn active" data-players="2">1</button>
-                                <button class="option-btn" data-players="3">2</button>
-                                <button class="option-btn" data-players="4">3</button>
-                            </div>
+        <div class="hero-content">
+            <h1 class="hero-title" data-text="Conquérez. Évoluez. Dominez.">Conquérez. Évoluez. Dominez.</h1>
+            <p class="hero-subtitle">
+                Plongez dans un univers médiéval fantastique où la stratégie règne. 
+                Construisez votre empire, développez vos armées et écrasez vos ennemis dans des batailles épiques en temps réel.
+                Chaque décision compte dans cette expérience de guerre tactique immersive.
+            </p>
+            <div class="hero-buttons">
+                <a href="game.html" class="btn-primary btn-large">
+                    <span class="btn-icon">⚔️</span>
+                    <span>Jouer Gratuitement</span>
+                </a>
+                <a href="#gameplay" class="btn-secondary btn-large">
+                    <span class="btn-icon">📺</span>
+                    <span>Voir le Gameplay</span>
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat animate-stat">
+                    <span class="stat-number" data-target="100">0</span>
+                    <span class="stat-label">% Gratuit</span>
+                </div>
+                <div class="stat animate-stat">
+                    <span class="stat-number" data-target="4">0</span>
+                    <span class="stat-label">Joueurs Max</span>
+                </div>
+                <div class="stat animate-stat">
+                    <span class="stat-number">∞</span>
+                    <span class="stat-label">Rejouabilité</span>
+                </div>
+            </div>
+        </div>
+        <div class="scroll-indicator" onclick="document.getElementById('features').scrollIntoView({behavior: 'smooth'})"></div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2 class="section-title">Pourquoi Tower Rush?</h2>
+            <div class="features-grid">
+                <div class="feature-card" data-delay="0">
+                    <div class="feature-icon">🏰</div>
+                    <h3>Stratégie Profonde</h3>
+                    <p>Gérez vos ressources, positionnez vos troupes et planifiez vos attaques pour dominer le champ de bataille.</p>
+                </div>
+                <div class="feature-card" data-delay="100">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Action en Temps Réel</h3>
+                    <p>Pas de tours d'attente ! L'action est constante et chaque décision compte dans cette bataille sans merci.</p>
+                </div>
+                <div class="feature-card" data-delay="200">
+                    <div class="feature-icon">🎮</div>
+                    <h3>Facile à Apprendre</h3>
+                    <p>Une interface intuitive et des contrôles simples rendent le jeu accessible à tous, du débutant au stratège confirmé.</p>
+                </div>
+                <div class="feature-card" data-delay="300">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Multijoueur en Ligne</h3>
+                    <p>Affrontez jusqu'à 3 autres joueurs dans des batailles épiques ou perfectionnez vos stratégies contre l'IA.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gameplay Showcase -->
+    <section id="gameplay" class="gameplay-showcase">
+        <div class="container">
+            <h2 class="section-title">Découvrez le Gameplay</h2>
+            
+            <div class="showcase-item">
+                <div class="showcase-content">
+                    <h3>De Paysan à Roi</h3>
+                    <p>Commencez avec une simple maison et développez votre empire jusqu'à construire des châteaux imposants. Chaque bâtiment évolue automatiquement selon vos forces militaires.</p>
+                    <ul class="feature-list">
+                        <li>5 types de bâtiments évolutifs</li>
+                        <li>Production automatique d'unités</li>
+                        <li>Système de progression visuel</li>
+                    </ul>
+                </div>
+                <div class="showcase-image">
+                    <img src="assets/ImageVitrine/paysantouroi.png" alt="Evolution des bâtiments" class="animate-slide-in" loading="lazy">
+                </div>
+            </div>
+
+            <div class="showcase-item reverse">
+                <div class="showcase-content">
+                    <h3>Système d'Évolution Dynamique</h3>
+                    <p>Vos bâtiments grandissent et se transforment en fonction de votre puissance militaire. Plus vous avez d'unités, plus vos structures deviennent imposantes.</p>
+                    <ul class="feature-list">
+                        <li>Maison → Tour → Château</li>
+                        <li>Bonus de production pour les châteaux</li>
+                        <li>Défenses améliorées automatiquement</li>
+                    </ul>
+                </div>
+                <div class="showcase-image">
+                    <img src="assets/ImageVitrine/evolution.png" alt="Système d'évolution" class="animate-slide-in" loading="lazy">
+                </div>
+            </div>
+
+            <div class="showcase-item">
+                <div class="showcase-content">
+                    <h3>Batailles Stratégiques</h3>
+                    <p>Lancez des assauts coordonnés, défendez vos positions et utilisez le système de dés unique pour résoudre les combats. La tactique prime sur la force brute!</p>
+                    <ul class="feature-list">
+                        <li>Combat en temps réel avec système de dés</li>
+                        <li>Bonus défensif pour les assiégés</li>
+                        <li>Attaques groupées et stratégies avancées</li>
+                    </ul>
+                </div>
+                <div class="showcase-image">
+                    <img src="assets/ImageVitrine/attaque.png" alt="Système de combat" class="animate-slide-in" loading="lazy">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <div class="cta-content">
+                <img src="assets/ImageVitrine/banniere_vertical.png" alt="Tower Rush" class="cta-image animate-float">
+                <div class="cta-text">
+                    <h2>Prêt à Conquérir?</h2>
+                    <p>Rejoignez des milliers de stratèges et prouvez votre valeur sur le champ de bataille. Aucun téléchargement requis!</p>
+                    <div class="cta-buttons">
+                        <a href="game.html" class="btn-primary btn-large">
+                            <span class="btn-icon">🎮</span>
+                            Jouer Maintenant
+                        </a>
+                        <div class="platform-badges">
+                            <span class="badge">🌐 Navigateur Web</span>
+                            <span class="badge">📱 Mobile</span>
+                            <span class="badge">💻 PC/Mac</span>
                         </div>
-                        <div class="inline-group">
-                            <label>Difficulté:</label>
-                            <div class="button-group compact">
-                                <button class="option-btn" data-difficulty="easy">Facile</button>
-                                <button class="option-btn active" data-difficulty="medium">Moyen</button>
-                                <button class="option-btn" data-difficulty="hard">Difficile</button>
-                            </div>
-                        </div>
                     </div>
-                    <button id="quickPlayBtn" class="btn btn-primary btn-action">
-                        <span class="btn-icon">⚔️</span>
-                        <span>Jouer Solo</span>
-                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq" class="faq-section">
+        <div class="faq-container">
+            <h2 class="section-title">Questions Fréquentes</h2>
+            
+            <div class="faq-item" data-delay="0">
+                <button class="faq-question">
+                    Comment jouer à Tower Rush ?
+                </button>
+                <div class="faq-answer">
+                    <p>Tower Rush est très simple à apprendre ! Sélectionnez vos bâtiments en cliquant dessus, puis cliquez sur un bâtiment ennemi pour attaquer. Utilisez la molette pour ajuster le pourcentage d'unités à envoyer. Votre objectif est de capturer tous les bâtiments ennemis.</p>
                 </div>
             </div>
             
-            <div class="menu-divider"></div>
-            
-            <!-- Section Multijoueur -->
-            <div class="menu-section">
-                <h2 class="section-title">Multijoueur</h2>
-                <div class="multiplayer-buttons">
-                    <button id="hostGameBtn" class="btn btn-secondary btn-action">
-                        <span class="btn-icon">🏰</span>
-                        <span>Créer une partie</span>
-                    </button>
-                    <div class="join-section">
-                        <input type="text" id="roomCode" placeholder="Code de la salle" class="room-code-input">
-                        <button id="joinBtn" class="btn btn-secondary btn-compact">
-                            <span class="btn-icon">🚪</span>
-                            <span>Rejoindre</span>
-                        </button>
-                    </div>
+            <div class="faq-item" data-delay="100">
+                <button class="faq-question">
+                    Le jeu est-il gratuit ?
+                </button>
+                <div class="faq-answer">
+                    <p>Oui, Tower Rush est complètement gratuit ! Aucun téléchargement n'est requis, vous pouvez jouer directement dans votre navigateur web. Pas d'achats intégrés, pas d'abonnements.</p>
                 </div>
-                <div id="connectionStatus" class="status-text"></div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Écran de chargement du jeu -->
-    <div class="game-loading-screen" id="gameLoadingScreen" style="display: none;">
-        <div class="loading-content">
-            <img src="assets/banniere.png" alt="Tower Rush" class="loading-banner">
-            <div class="loading-info">
-                <h2>Préparation de la bataille...</h2>
-                <div class="loading-bar large">
-                    <div class="loading-progress"></div>
-                </div>
-                <p class="loading-tip" id="loadingTip">Astuce: Les châteaux produisent 2 unités par seconde!</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Lobby multijoueur -->
-    <div class="lobby-screen" id="lobbyScreen" style="display: none;">
-        <!-- Logo en overlay -->
-        <div class="lobby-logo">
-            <img src="assets/logo.png" alt="Tower Rush" class="lobby-logo-img">
-        </div>
-        
-        <div class="lobby-content">
-            <div class="lobby-header">
-                <div class="lobby-info">
-                    <div class="room-code-badge">
-                        <span>Code:</span>
-                        <span id="lobbyRoomCode"></span>
-                    </div>
-                </div>
-                <button id="leaveLobbyBtn" class="btn btn-danger btn-leave">✕ Quitter</button>
             </div>
             
-            <div class="lobby-main">
-                <div class="players-section">
-                    <h3 class="section-title">Joueurs connectés</h3>
-                    <div class="players-grid" id="playersList">
-                        <!-- Liste des joueurs sera générée ici -->
-                    </div>
-                    <div class="lobby-controls">
-                        <button id="startGameLobbyBtn" class="btn btn-primary start-game-btn" style="display: none;">Démarrer la partie</button>
-                        <div class="waiting-message" id="waitingMessage" style="display: none;">
-                            En attente que l'hôte démarre la partie...
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="chat-section">
-                    <div class="chat-header">
-                        <h3 class="section-title">Chat</h3>
-                    </div>
-                    <div class="chat-messages" id="chatMessages">
-                        <!-- Messages du chat -->
-                    </div>
-                    <div class="chat-input-container">
-                        <input type="text" id="chatInput" class="chat-input" placeholder="Tapez votre message..." maxlength="200">
-                        <button id="sendChatBtn" class="chat-send-btn">Envoyer</button>
-                    </div>
+            <div class="faq-item" data-delay="200">
+                <button class="faq-question">
+                    Puis-je jouer avec mes amis ?
+                </button>
+                <div class="faq-answer">
+                    <p>Absolument ! Tower Rush propose un mode multijoueur jusqu'à 4 joueurs. Créez une partie et partagez le code de salle avec vos amis, ou rejoignez une partie existante. Le mode solo contre l'IA est également disponible.</p>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="game-container" id="gameContainer" style="display: none;">
-        <div class="game-header">
-            <div class="game-header-content">
-                <button id="backToMenuBtn" class="btn btn-sm btn-secondary back-btn">← Menu</button>
-                <img src="assets/logo.png" alt="Tower Rush" class="game-logo">
-                <div class="game-stats">
-                    <div class="stat-card player">
-                        <span class="stat-label">Joueur</span>
-                        <span class="stat-value" id="playerBuildings">0</span>
-                    </div>
-                    <button id="musicToggleBtn" class="audio-toggle" title="Activer/Désactiver la musique"></button>
-                    <button id="helpBtn" class="help-button" title="Aide">?</button>
-                    <div class="stat-card enemy">
-                        <span class="stat-label">Ennemi</span>
-                        <span class="stat-value" id="enemyBuildings">0</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="game-canvas-wrapper">
-            <div class="game-canvas-container">
-                <canvas id="gameCanvas"></canvas>
-            </div>
-        </div>
-        
-        <div class="game-controls">
-            <div class="controls-wrapper">
-                <div class="selected-info">
-                    <div class="selected-icon">🏰</div>
-                    <div class="selected-text" id="selectedBuildingInfo">Sélectionnez un bâtiment</div>
-                </div>
-                <div class="percentage-control">
-                    <span class="percentage-label">Force</span>
-                    <span class="percentage-value" id="percentageInfo">50%</span>
-                    <span class="percentage-hint">(molette)</span>
-                </div>
-                <div class="action-buttons">
-                    <button id="sendBtn" class="btn btn-primary action-btn" disabled>Envoyer</button>
-                    <button id="backToMenuBtn" class="btn btn-secondary action-btn">Menu</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="game-over" id="gameOver" style="display: none;">
-        <div class="game-over-content">
-            <div class="game-over-icon" id="gameOverIcon">🏆</div>
-            <h2 class="game-over-title" id="gameOverTitle">Fin de Partie</h2>
-            <p class="game-over-message" id="gameOverMessage">Message</p>
-            <div class="game-over-actions">
-                <button id="restartBtn" class="btn btn-primary">Recommencer</button>
-                <button id="menuBtn" class="btn btn-secondary">Menu Principal</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Panneau d'aide -->
-    <div class="help-panel" id="helpPanel" style="display: none;">
-        <div class="help-content">
-            <button class="help-close" id="helpClose">×</button>
-            <h2 class="help-title">Comment jouer</h2>
             
-            <div class="help-section">
-                <h3>🎯 Objectif</h3>
-                <p>Conquérir tous les bâtiments ennemis (rouges) pour gagner!</p>
+            <div class="faq-item" data-delay="300">
+                <button class="faq-question">
+                    Sur quelles plateformes puis-je jouer ?
+                </button>
+                <div class="faq-answer">
+                    <p>Tower Rush fonctionne sur tous les navigateurs modernes : Chrome, Firefox, Safari, Edge. Compatible PC, Mac, tablettes et smartphones. Aucune installation nécessaire, jouez directement en ligne !</p>
+                </div>
             </div>
-
-            <div class="help-section">
-                <h3>🏰 Bâtiments</h3>
-                <ul>
-                    <li>Produisent 1 unité/seconde (châteaux: 2 unités/s)</li>
-                    <li>Évoluent avec le nombre d'unités</li>
-                    <li>Cliquez pour sélectionner/désélectionner</li>
-                </ul>
+            
+            <div class="faq-item" data-delay="400">
+                <button class="faq-question">
+                    Comment évoluent les bâtiments ?
+                </button>
+                <div class="faq-answer">
+                    <p>Vos bâtiments évoluent automatiquement selon le nombre d'unités qu'ils contiennent : Maison → Tour → Château. Plus un bâtiment évolue, plus il produit d'unités rapidement et devient difficile à conquérir.</p>
+                </div>
             </div>
-
-            <div class="help-section">
-                <h3>⚔️ Combat</h3>
-                <ul>
-                    <li><strong>Attaquants:</strong> Lancent toujours 2 dés</li>
-                    <li><strong>Défenseurs:</strong> 1-3 dés selon le rapport de forces
-                        <ul>
-                            <li>1 dé: en infériorité numérique</li>
-                            <li>2 dés: forces équivalentes</li>
-                            <li>3 dés: supériorité 2:1 ou plus</li>
-                        </ul>
-                    </li>
-                    <li>Le meilleur résultat gagne, le perdant perd 1 unité</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>🎮 Contrôles</h3>
-                <ul>
-                    <li><strong>Clic gauche:</strong> Sélectionner/désélectionner un bâtiment</li>
-                    <li><strong>Clic gauche sur ennemi:</strong> Attaquer avec les bâtiments sélectionnés</li>
-                    <li><strong>Molette:</strong> Ajuster le % d'unités à envoyer (10-100%)</li>
-                </ul>
-            </div>
-
-            <div class="help-section">
-                <h3>💡 Conseils</h3>
-                <ul>
-                    <li>Attaquez avec supériorité numérique</li>
-                    <li>Défendez vos positions clés</li>
-                    <li>Regroupez vos forces avant d'attaquer</li>
-                </ul>
+            
+            <div class="faq-item" data-delay="500">
+                <button class="faq-question">
+                    Le jeu est-il disponible en français ?
+                </button>
+                <div class="faq-answer">
+                    <p>Oui ! Tower Rush est entièrement traduit en français. L'interface, les messages et l'aide sont disponibles dans la langue de Molière pour une expérience de jeu optimale.</p>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <!-- Core classes -->
-    <script src="src/entities/Building.js"></script>
-    <script src="src/entities/UnitGroup.js"></script>
-    <script src="src/multiplayer/MultiplayerManager.js"></script>
-    <script src="src/core/Game.js"></script>
-    
+    <!-- About Section -->
+    <section id="about" class="about-section">
+        <div class="container">
+            <h2 class="section-title">À Propos de Tower Rush</h2>
+            <div class="about-content">
+                <p>
+                    Tower Rush est un jeu de stratégie en temps réel (RTS) qui réinvente le genre avec des mécaniques simples mais profondes. 
+                    Inspiré des grands classiques du RTS, il offre une expérience accessible sans sacrifier la profondeur stratégique.
+                    Développé avec passion par un développeur indépendant, ce projet open-source vise à rendre la stratégie accessible à tous.
+                </p>
+                <div class="tech-stack">
+                    <h3>Technologies Utilisées</h3>
+                    <div class="tech-badges">
+                        <span class="tech-badge">JavaScript Vanilla</span>
+                        <span class="tech-badge">HTML5 Canvas</span>
+                        <span class="tech-badge">CSS3</span>
+                        <span class="tech-badge">WebRTC (Multijoueur)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <img src="assets/logo.png" alt="Tower Rush" class="footer-logo" loading="lazy">
+            <p class="footer-text">© 2024 Tower Rush. Tous droits réservés.</p>
+            <div class="footer-links">
+                <a href="https://github.com/gtko/towerRush" class="footer-link" rel="noopener noreferrer" target="_blank">GitHub</a>
+            </div>
+        </div>
+    </footer>
+
     <script>
-        // Démarrer le jeu
-        let game;
-        window.addEventListener('load', () => {
-            // Initialiser le jeu directement
-            game = new Game();
+        // Navigation sticky
+        const navbar = document.getElementById('navbar');
+        const navHeight = navbar.offsetHeight;
+        
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > navHeight) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
         });
-    </script>
-    
-    <script>
-        // PWA uniquement si servi via HTTP/HTTPS
-        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(registration => {
-                        console.log('Service Worker enregistré:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('Échec enregistrement Service Worker:', error);
-                    });
+        
+        // Menu hamburger
+        const hamburger = document.getElementById('hamburger');
+        const navLinks = document.getElementById('navLinks');
+        
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+        });
+        
+        // Fermer le menu mobile au clic sur un lien
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
             });
-        } else {
-            console.log('Service Worker non disponible (protocole file:// ou non supporté)');
+        });
+        
+        // Smooth scrolling pour les liens d'ancrage
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    const offsetTop = target.offsetTop - navHeight;
+                    window.scrollTo({
+                        top: offsetTop,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+        // Animation au scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    // Délai personnalisé pour les cartes
+                    const delay = entry.target.dataset.delay || 0;
+                    setTimeout(() => {
+                        entry.target.classList.add('visible');
+                    }, delay);
+                    
+                    // Animation des compteurs
+                    if (entry.target.classList.contains('animate-stat')) {
+                        const counter = entry.target.querySelector('.stat-number');
+                        if (counter && counter.dataset.target && !counter.classList.contains('counted')) {
+                            counter.classList.add('counted');
+                            animateCounter(counter, parseInt(counter.dataset.target));
+                        }
+                    }
+                }
+            });
+        }, observerOptions);
+
+        // Observer les éléments à animer
+        document.querySelectorAll('.feature-card, .showcase-item, .animate-slide-in, .animate-stat, .faq-item').forEach(el => {
+            observer.observe(el);
+        });
+        
+        // Gestion FAQ
+        document.querySelectorAll('.faq-question').forEach(question => {
+            question.addEventListener('click', () => {
+                const faqItem = question.parentElement;
+                const isActive = faqItem.classList.contains('active');
+                
+                // Fermer toutes les autres FAQ
+                document.querySelectorAll('.faq-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                
+                // Ouvrir la FAQ cliquée si elle n'était pas déjà ouverte
+                if (!isActive) {
+                    faqItem.classList.add('active');
+                }
+            });
+        });
+        
+        // Fonction pour animer les compteurs
+        function animateCounter(element, target) {
+            let current = 0;
+            const increment = target / 50;
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= target) {
+                    element.textContent = target;
+                    clearInterval(timer);
+                } else {
+                    element.textContent = Math.floor(current);
+                }
+            }, 30);
+        }
+
+        // Effet parallaxe sur le hero
+        const hero = document.querySelector('.hero');
+        const heroContent = document.querySelector('.hero-content');
+        const heroBanner = document.querySelector('.hero-banner');
+        const particles = document.querySelector('.particles');
+        
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const rate = scrolled * -0.5;
+            const bannerRate = scrolled * -0.3;
+            const particleRate = scrolled * 0.2;
+            
+            hero.style.transform = `translateY(${rate}px)`;
+            if (heroBanner) {
+                heroBanner.style.transform = `translateY(${bannerRate}px) scale(${1 + scrolled * 0.0002})`;
+            }
+            if (particles) {
+                particles.style.transform = `translateY(${particleRate}px)`;
+            }
+            
+            // Masquer l'indicateur de scroll
+            const scrollIndicator = document.querySelector('.scroll-indicator');
+            if (scrollIndicator) {
+                scrollIndicator.style.opacity = Math.max(0, 1 - scrolled / 200);
+            }
+        });
+        
+        
+        // Optimisation des performances
+        let ticking = false;
+        function requestTick() {
+            if (!ticking) {
+                requestAnimationFrame(updateParallax);
+                ticking = true;
+            }
         }
         
-        // Détection PWA installable
-        window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('PWA installable détectée');
+        function updateParallax() {
+            const scrolled = window.pageYOffset;
+            const heroSection = document.querySelector('.hero');
+            
+            if (scrolled > window.innerHeight) {
+                heroSection.classList.add('scrolled-out');
+            } else {
+                heroSection.classList.remove('scrolled-out');
+            }
+            
+            ticking = false;
+        }
+        
+        window.addEventListener('scroll', requestTick, { passive: true });
+        
+        // Auto-ouvrir la première FAQ
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const firstFaq = document.querySelector('.faq-item');
+                if (firstFaq) {
+                    firstFaq.classList.add('active');
+                }
+            }, 1000);
         });
     </script>
 </body>
