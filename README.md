@@ -79,9 +79,33 @@ Pour contribuer au projet :
 
 1. Forkez le repository
 2. Créez une branche pour votre fonctionnalité (`git checkout -b feature/ma-fonctionnalite`)
-3. Committez vos changements (`git commit -m 'Ajout de ma fonctionnalité'`)
+3. Committez vos changements en utilisant les [Conventional Commits](https://www.conventionalcommits.org/fr/v1.0.0/)
 4. Poussez vers la branche (`git push origin feature/ma-fonctionnalite`)
 5. Ouvrez une Pull Request
+
+### Format des commits
+
+Ce projet utilise [Conventional Commits](https://www.conventionalcommits.org/fr/v1.0.0/) pour automatiser les releases :
+
+- `feat:` - Nouvelle fonctionnalité (version mineure)
+- `fix:` - Correction de bug (version patch)
+- `docs:` - Documentation uniquement
+- `style:` - Changements de formatage
+- `refactor:` - Refactoring du code
+- `perf:` - Amélioration des performances
+- `test:` - Ajout ou modification de tests
+- `chore:` - Maintenance
+
+Exemples :
+```bash
+feat: ajouter le mode multijoueur
+fix: corriger le bug d'affichage des unités
+docs: mettre à jour le README
+```
+
+### Releases automatiques
+
+Les releases sont automatiquement créées lors des merges dans `master` grâce à [semantic-release](https://semantic-release.gitbook.io/semantic-release/). Un changelog est généré automatiquement basé sur les commits.
 
 ## Déploiement
 
