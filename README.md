@@ -1,48 +1,111 @@
-# Tower Rush
+![Tower Rush Banner](assets/banniere.png)
 
-Tower Rush est un jeu de stratégie en temps réel (RTS) médiéval fantastique jouable dans le navigateur. Les joueurs contrôlent des bâtiments qui produisent des unités et s'engagent dans des batailles tactiques sur une carte médiévale.
+# 🏰 Tower Rush
 
-## Caractéristiques
+**Tower Rush** est un jeu de stratégie en temps réel (RTS) médiéval fantastique entièrement jouable dans votre navigateur. Plongez dans des batailles épiques où la tactique et la rapidité déterminent le vainqueur !
 
-- **Gameplay Stratégique** : Contrôlez des bâtiments, produisez des unités et conquérez la carte
-- **Mode Multijoueur** : Jouez jusqu'à 4 joueurs en temps réel via WebRTC
-- **Progression des Bâtiments** : Les bâtiments évoluent visuellement (maison → tour → château)
-- **Système de Combat** : Bonus défensif de 20% pour les défenseurs
-- **Interface Moderne** : Design responsive avec animations fluides
-- **Système de Profil** : Créez votre profil avec avatar personnalisé
-- **Classement** : Suivez vos statistiques et comparez-vous aux autres joueurs
+## 🎮 Jouez maintenant !
 
-## Comment Jouer
+[![Jouer maintenant](https://img.shields.io/badge/🎮_Jouer_maintenant-blue?style=for-the-badge)](https://gtko.github.io/towerRush/)
+[![Ouvrir dans Codespace](https://img.shields.io/badge/🚀_Ouvrir_dans_Codespace-green?style=for-the-badge)](https://github.com/codespaces/new?hide_repo_select=true&ref=master&repo=gtko/towerRush)
+[![Télécharger](https://img.shields.io/badge/📦_Télécharger-orange?style=for-the-badge)](https://github.com/gtko/towerRush/releases/latest)
 
-### Commandes
+> **🌟 Découvrez un RTS innovant** : Pas de micromanagement fastidieux ! Concentrez-vous sur la stratégie pure avec des mécaniques de jeu accessibles mais profondes.
 
-- **Clic gauche** : Sélectionner/désélectionner des bâtiments
-- **Clic droit** : Envoyer des unités vers une cible
-- **Molette de souris** : Ajuster le pourcentage d'unités à envoyer (10%-100%)
-- **Espace** : Pause (mode solo uniquement)
+## ✨ Caractéristiques principales
 
-### Objectif
+### 🎯 **Gameplay Unique**
+- **🏗️ Construction Automatique** : Vos bâtiments évoluent automatiquement selon leur garnison
+- **⚔️ Combat Tactique** : Envoyez vos armées avec précision (10% à 100% de vos forces)
+- **🛡️ Bonus Défensif** : 20% de bonus pour les défenseurs - chaque attaque compte !
+- **📈 Progression Visuelle** : Regardez vos bâtiments grandir (maison → tour → château)
 
-Conquérir tous les bâtiments ennemis en envoyant vos unités les attaquer. Chaque bâtiment produit automatiquement des unités (1/seconde pour les bâtiments normaux, 2/seconde pour les châteaux).
+### 🌐 **Multijoueur Révolutionnaire**
+- **👥 Jusqu'à 4 joueurs** en temps réel
+- **🔗 WebRTC P2P** : Connexion directe sans serveur
+- **💬 Chat intégré** avec noms de profils
+- **⚡ Latence minimale** grâce à la technologie peer-to-peer
 
-## Installation
+### 🎨 **Expérience Moderne**
+- **📱 Interface Responsive** : Jouez sur PC, tablette ou mobile
+- **🎭 Profils Personnalisés** : Créez votre identité avec avatars uniques
+- **🏆 Système de Classement** : Suivez vos performances et défiez les autres
+- **🎵 Ambiance Immersive** : Graphismes médiévaux et effets sonores
 
-1. Clonez le repository :
+## 🎮 Comment Jouer
+
+### 🎯 **Objectif**
+Dominez le champ de bataille en conquérant tous les bâtiments ennemis ! Chaque structure produit automatiquement des unités - plus vous en contrôlez, plus votre armée grandit rapidement.
+
+### ⌨️ **Commandes Intuitives**
+| Action | Commande | Description |
+|--------|----------|-------------|
+| 🏰 **Sélection** | `Clic gauche` | Sélectionner/désélectionner vos bâtiments |
+| ⚔️ **Attaque** | `Clic droit` | Envoyer vos unités vers une cible |
+| 📊 **Dosage** | `Molette souris` | Ajuster le % d'unités à envoyer (10%-100%) |
+| ⏸️ **Pause** | `Espace` | Pause tactique (mode solo uniquement) |
+
+### 📈 **Mécaniques de Jeu**
+- **Production Auto** : 1 unité/seconde (2/seconde pour les châteaux)
+- **Évolution** : Vos bâtiments se renforcent automatiquement
+- **Tactique** : Timing et coordination sont la clé de la victoire
+- **Équilibre** : Bonus défensif pour des combats équilibrés
+
+### 🚀 **Démarrage Rapide**
+1. **Sélectionnez** vos bâtiments (bordure dorée = sélectionné)
+2. **Visez** un bâtiment ennemi et clic droit pour attaquer
+3. **Ajustez** la molette pour contrôler vos forces
+4. **Répétez** jusqu'à la victoire totale !
+
+## 🛠️ Installation & Développement
+
+### 🎮 **Pour Joueurs**
+**Option 1 - Jouer en ligne :**
+[![Jouer maintenant](https://img.shields.io/badge/🎮_Jouer_maintenant-blue?style=flat-square)](https://gtko.github.io/towerRush/)
+
+**Option 2 - Télécharger :**
+1. [Téléchargez la dernière version](https://github.com/gtko/towerRush/releases/latest)
+2. Extrayez le fichier zip
+3. Ouvrez `index.html` dans votre navigateur
+
+### 👨‍💻 **Pour Développeurs**
+
+**Option 1 - GitHub Codespaces (Recommandé) :**
+[![Ouvrir dans Codespace](https://img.shields.io/badge/🚀_Ouvrir_dans_Codespace-green?style=flat-square)](https://github.com/codespaces/new?hide_repo_select=true&ref=master&repo=gtko/towerRush)
+
+**Option 2 - Installation locale :**
 ```bash
-git clone https://github.com/votre-username/tower-rush.git
-cd tower-rush
+# Cloner le repository
+git clone https://github.com/gtko/towerRush.git
+cd towerRush
+
+# Serveur de développement (optionnel, pour le multijoueur)
+python3 -m http.server 8000
+# ou
+npx serve .
 ```
 
-2. Ouvrez `index.html` dans votre navigateur moderne préféré
+> **💡 Avantage** : Aucune compilation nécessaire ! Application web pure en JavaScript vanilla.
 
-Aucune installation ou compilation n'est nécessaire - c'est une application web pure en JavaScript vanilla !
+## 🌐 Mode Multijoueur
 
-## Mode Multijoueur
+### 🚀 **Technologie Révolutionnaire**
+Grâce à **WebRTC**, profitez d'une expérience multijoueur **sans serveur** :
+- **🔗 Connexion P2P** : Directe entre joueurs
+- **⚡ Latence ultra-faible** : Pas d'intermédiaire
+- **🛡️ Sécurisé** : Vos données restent entre vous
+- **🌍 Universel** : Fonctionne partout dans le monde
 
-1. L'hôte crée une partie et partage le code de la salle
-2. Les autres joueurs rejoignent avec ce code
-3. Jusqu'à 4 joueurs peuvent jouer ensemble
-4. La connexion se fait en peer-to-peer via WebRTC
+### 🎯 **Comment Jouer à Plusieurs**
+1. **🏠 L'hôte** crée une partie et obtient un code de salle
+2. **👥 Les joueurs** rejoignent avec ce code
+3. **💬 Chat** pour se coordonner avant la bataille
+4. **⚔️ Bataille épique** jusqu'à 4 joueurs simultanés !
+
+### 🏆 **Modes de Jeu**
+- **🤖 Solo vs IA** : Perfectionnez vos tactiques
+- **👥 Multijoueur** : Défiez vos amis
+- **🏆 Tournois** : Organisez vos propres compétitions
 
 ## Structure du Projet
 
@@ -65,14 +128,22 @@ tower-rush/
     └── Terrain/
 ```
 
-## Technologies Utilisées
+## 🛠️ Technologies de Pointe
 
-- **JavaScript Vanilla** : Aucun framework, code pur
-- **Canvas API** : Pour le rendu 2D
-- **WebRTC (PeerJS)** : Pour le multijoueur peer-to-peer
-- **LocalStorage** : Pour sauvegarder les profils et scores
-- **GitHub Actions** : Pour le déploiement et releases automatiques
-- **BunnyCDN** : Pour l'hébergement et la distribution CDN
+| Technologie | Usage | Avantage |
+|-------------|-------|----------|
+| **🟨 JavaScript Vanilla** | Moteur de jeu | Performance maximale, zéro dépendance |
+| **🎨 Canvas API** | Rendu 2D | Animations fluides 60fps |
+| **🌐 WebRTC (PeerJS)** | Multijoueur P2P | Connexion directe, latence minimale |
+| **💾 LocalStorage** | Profils & scores | Sauvegarde locale instantanée |
+| **🚀 GitHub Actions** | CI/CD | Déploiement automatique |
+| **⚡ BunnyCDN** | Distribution | Chargement ultra-rapide mondial |
+
+### 🎯 **Pourquoi ces choix ?**
+- **⚡ Performance** : JavaScript natif pour une fluidité optimale
+- **📱 Compatibilité** : Fonctionne sur tous les navigateurs modernes
+- **🔧 Simplicité** : Aucune installation, aucune compilation
+- **🌍 Accessibilité** : Disponible instantanément partout
 
 ## Développement
 
@@ -179,16 +250,42 @@ Si vous préférez configurer manuellement, ajoutez ces secrets dans Settings �
 - **Releases** : Consultez l'historique des versions dans Releases
 - **Logs** : Vérifiez les logs de déploiement pour diagnostiquer les problèmes
 
-## License
+## 📊 Statistiques du Projet
 
-Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/gtko/towerRush?style=flat-square&logo=github)
+![GitHub](https://img.shields.io/github/license/gtko/towerRush?style=flat-square)
+![GitHub stars](https://img.shields.io/github/stars/gtko/towerRush?style=flat-square&logo=github)
+![GitHub forks](https://img.shields.io/github/forks/gtko/towerRush?style=flat-square&logo=github)
+![GitHub issues](https://img.shields.io/github/issues/gtko/towerRush?style=flat-square&logo=github)
 
-## Crédits
+## 🤝 Communauté & Support
 
-- Développé avec passion pour les amateurs de jeux de stratégie
-- Assets graphiques : [Source des assets si applicable]
-- Musique et sons : [Source audio si applicable]
+### 💬 **Rejoignez-nous**
+- **🐛 Bugs & Suggestions** : [Issues GitHub](https://github.com/gtko/towerRush/issues)
+- **💡 Idées & Features** : [Discussions GitHub](https://github.com/gtko/towerRush/discussions)
+- **🔧 Développement** : [Codespace en 1 clic](https://github.com/codespaces/new?hide_repo_select=true&ref=master&repo=gtko/towerRush)
+
+### 🏆 **Contribuer**
+Tower Rush est **open source** ! Vos contributions sont les bienvenues :
+- **🎨 Assets graphiques** : Nouvelles unités, bâtiments, terrains
+- **🎵 Audio** : Musiques, effets sonores
+- **💻 Code** : Nouvelles fonctionnalités, optimisations
+- **📚 Documentation** : Tutoriels, guides, traductions
+
+## 📄 License
+
+Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
 ---
 
-Fait avec ❤️ pour la communauté des joueurs RTS
+<div align="center">
+
+### 🎮 **Prêt pour la bataille ?**
+
+[![Jouer maintenant](https://img.shields.io/badge/🏰_JOUER_MAINTENANT-success?style=for-the-badge&logo=gamepad)](https://gtko.github.io/towerRush/)
+
+*Fait avec ❤️ pour la communauté des joueurs RTS*
+
+**⭐ N'oubliez pas de donner une étoile si vous aimez le projet ! ⭐**
+
+</div>
