@@ -32,7 +32,6 @@
         </nav>
         
         <div class="hero-content">
-            <img src="assets/banniere.png" alt="Tower Rush" class="hero-banner" loading="eager">
             <h1 class="hero-title" data-text="Conquérez. Évoluez. Dominez.">Conquérez. Évoluez. Dominez.</h1>
             <p class="hero-subtitle">
                 Plongez dans un univers médiéval fantastique où la stratégie règne. 
@@ -404,31 +403,6 @@
             }
         });
         
-        // Effet de souris sur le hero (désactivé sur mobile)
-        if (window.innerWidth > 768) {
-            let mouseX = 0;
-            let mouseY = 0;
-            let currentX = 0;
-            let currentY = 0;
-            
-            document.addEventListener('mousemove', (e) => {
-                mouseX = (e.clientX / window.innerWidth - 0.5) * 20;
-                mouseY = (e.clientY / window.innerHeight - 0.5) * 20;
-            });
-            
-            function animateHeroBanner() {
-                currentX += (mouseX - currentX) * 0.1;
-                currentY += (mouseY - currentY) * 0.1;
-                
-                if (heroBanner && !document.querySelector('.hero').classList.contains('scrolled-out')) {
-                    heroBanner.style.transform = `translateX(${currentX}px) translateY(${currentY}px)`;
-                }
-                
-                requestAnimationFrame(animateHeroBanner);
-            }
-            
-            animateHeroBanner();
-        }
         
         // Optimisation des performances
         let ticking = false;

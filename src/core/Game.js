@@ -7,6 +7,8 @@ class Game {
         this.selectedBuildings = [];
         this.targetBuilding = null;
         this.gameOver = false;
+        this.gameStarted = false;
+        this.gameLoopStarted = false;
         this.sendPercentage = 50;
         this.backgroundSprites = [];
         
@@ -506,6 +508,19 @@ class Game {
             const rect = this.canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const adjustedX = x * scaleX;
+            const adjustedY = y * scaleY;
+            
+            // Vérifier si on a cliqué sur un bâtiment
+            const clickedBuilding = this.buildings.find(building => building.isPointInside(adjustedX, adjustedY));
+            
+            // Si pas de bâtiment cliqué et pas de modificateur, désélectionner tout
+            if (!clickedBuilding && !e.ctrlKey && !e.metaKey) {
+                this.clearSelection();
+                return;
+            }
             
             this.handleClick(x, y, e);
         });
@@ -886,9 +901,11 @@ class Game {
                 this.updateSelectedBuildingInfo();
                 this.updateUI();
             }
-        } else if (!event || (!event.ctrlKey && !event.metaKey)) {
-            // Clic dans le vide sans Ctrl = tout désélectionner
-            this.clearSelection();
+        } else {
+            // Clic dans le vide = tout désélectionner (sauf si Ctrl/Cmd est enfoncé)
+            if (!event || (!event.ctrlKey && !event.metaKey)) {
+                this.clearSelection();
+            }
         }
     }
 
@@ -898,6 +915,7 @@ class Game {
         });
         this.selectedBuildings = [];
         this.targetBuilding = null;
+        this.updateSelectedBuildingInfo();
         this.updateUI();
         console.log('Sélections nettoyées');
     }
@@ -1000,7 +1018,17 @@ class Game {
         // Mettre à jour les groupes d'unités
         this.unitGroups = this.unitGroups.filter(group => {
             // Supprimer les groupes marqués pour suppression
-            if (group.toRemove) return false;
+            if (group.toRemove) {
+                console.log(`Suppression d'un groupe: ${group.units} unités de ${group.owner}`);
+                return false;
+            }
+            
+            // Vérification de sécurité pour éviter la suppression accidentelle
+            if (group.units <= 0 && !group.isFighting) {
+                console.log(`Groupe avec 0 unités supprimé (pas en combat): ${group.owner}`);
+                return false;
+            }
+            
             return group.update(this);
         });
         
@@ -1263,11 +1291,13 @@ class Game {
         this.handleResize();
         
         this.initBuildings();
+        this.gameLoopStarted = true;
         this.gameLoop();
     }
     
     backToMenu() {
         this.gameStarted = false;
+        this.gameLoopStarted = false;
         this.gameOver = false;
         document.getElementById('gameContainer').style.display = 'none';
         document.getElementById('menuScreen').style.display = 'flex';
@@ -2021,7 +2051,9 @@ class Game {
     updateFromNetworkState(networkGameState) {
         // Mettre à jour l'état local avec l'état reçu du réseau
         this.networkGameState = networkGameState;
-        this.loadGameStateFromNetwork(networkGameState);
+        
+        // IMPORTANT: Préserver les sélections locales lors des mises à jour réseau
+        this.updateGameStatePreservingLocalState(networkGameState);
     }
     
     loadGameStateFromNetwork(gameState) {
@@ -2080,6 +2112,13 @@ class Game {
         // S'assurer que le terrain est chargé
         if (!this.terrainGenerated) {
             this.generateTerrain();
+        }
+        
+        // IMPORTANT: Démarrer la boucle de jeu pour les clients
+        if (this.gameStarted && !this.gameLoopStarted) {
+            this.gameLoopStarted = true;
+            console.log('Démarrage de la boucle de jeu pour le client multijoueur');
+            this.gameLoop();
         }
         
         console.log('État chargé - Bâtiments:', this.buildings.length, 'Unités:', this.unitGroups.length);

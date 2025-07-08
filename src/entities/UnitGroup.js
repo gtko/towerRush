@@ -196,6 +196,19 @@ class UnitGroup {
         const deltaTime = (now - this.lastUpdate) / 1000;
         this.lastUpdate = now;
 
+        // Vérifications de sécurité
+        if (this.units <= 0 && !this.isFighting) {
+            console.log(`Groupe ${this.owner} avec 0 unités marqué pour suppression`);
+            this.toRemove = true;
+            return false;
+        }
+        
+        if (!this.target || !gameInstance.buildings.includes(this.target)) {
+            console.log(`Cible invalide pour le groupe ${this.owner}, suppression`);
+            this.toRemove = true;
+            return false;
+        }
+
         // Calculer la direction vers la cible
         const dx = this.target.x - this.x;
         const dy = this.target.y - this.y;
@@ -282,7 +295,9 @@ class UnitGroup {
             this.checkForReinforcements(gameInstance);
             
             // Vérifier si le combat est terminé par KO ou par temps
-            if (this.combatResult || fightElapsed >= this.fightDuration) {
+            // Ajouter une vérification de sécurité pour la durée de combat
+            const safeDuration = this.fightDuration && this.fightDuration > 0 ? this.fightDuration : 5000;
+            if (this.combatResult || fightElapsed >= safeDuration) {
                 // Combat terminé
                 this.isFighting = false; // Arrêter les effets visuels
                 this.attack();
@@ -351,7 +366,7 @@ class UnitGroup {
         
         // Calculer la durée totale du combat
         const totalCombatants = this.units + this.target.units;
-        this.fightDuration = totalCombatants * 500; // 500ms par combattant
+        this.fightDuration = Math.max(totalCombatants * 500, 2000); // Minimum 2 secondes, 500ms par combattant
     }
     
     createCombatEffects() {
@@ -559,7 +574,7 @@ class UnitGroup {
         
         // Ajuster la durée du combat
         const additionalDuration = this.reinforcements * 300; // 300ms par unité de renfort
-        this.fightDuration += additionalDuration;
+        this.fightDuration = Math.max((this.fightDuration || 0) + additionalDuration, 2000);
         
         // Réinitialiser les pertes pour tenir compte des renforts
         if (this.combatDice) {
@@ -780,6 +795,9 @@ class UnitGroup {
                         // Conquérir le bâtiment
                         this.target.owner = this.owner;
                         this.target.units = this.units;
+                        // IMPORTANT: Recharger le sprite pour la nouvelle couleur
+                        this.target.loadSprite();
+                        console.log(`Bâtiment conquis! Nouveau propriétaire: ${this.target.owner}`);
                     }
                 }
                 // Les pertes ont déjà été appliquées pendant le combat

@@ -370,7 +370,14 @@ class MultiplayerManager {
         if (!this.isHost) {
             // Recevoir l'état initial du jeu
             console.log('Réception du démarrage de jeu - Index:', data.myPlayerIndex, 'Total:', data.totalPlayers);
-            this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex, data.totalPlayers);
+            
+            // IMPORTANT: Afficher l'interface de jeu pour les joueurs distants
+            this.launchGameFromLobby();
+            
+            // Puis initialiser le jeu avec les données reçues
+            setTimeout(() => {
+                this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex, data.totalPlayers);
+            }, 100);
         }
     }
     
@@ -830,14 +837,18 @@ class MultiplayerManager {
     launchGameFromLobby() {
         this.inLobby = false;
         
-        // Masquer le lobby et afficher le jeu
+        // Masquer le lobby et afficher le jeu (pour tous les joueurs)
         document.getElementById('lobbyScreen').style.display = 'none';
         document.getElementById('gameContainer').style.display = 'flex';
         
-        // Démarrer la musique
-        setTimeout(() => this.game.startBackgroundMusic(), 500);
+        // Démarrer la musique (pour tous les joueurs)
+        setTimeout(() => {
+            if (this.game && this.game.startBackgroundMusic) {
+                this.game.startBackgroundMusic();
+            }
+        }, 500);
         
-        // Démarrer le jeu multijoueur
+        // Démarrer le jeu multijoueur (seulement pour l'hôte)
         if (this.isHost) {
             // L'hôte crée le jeu basé sur les joueurs du lobby
             const realPlayerCount = this.connections.size + 1; // +1 pour l'hôte
@@ -862,9 +873,11 @@ class MultiplayerManager {
                 
                 console.log(`État initial envoyé à ${this.connections.size} clients`);
             }, 100);
+            
+            this.addSystemMessage('La partie commence!');
+        } else {
+            console.log('Client: Interface de jeu affichée, en attente des données de l\'hôte');
         }
-        
-        this.addSystemMessage('La partie commence!');
     }
 }
 
