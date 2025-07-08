@@ -111,7 +111,7 @@ jobs:
         # Create tar.gz archive (better compression than zip)
         echo "Creating tar.gz archive for better compression..."
         cd deploy_temp
-        tar -czf ../deployment.tar.gz . --exclude="*.DS_Store" --exclude="*.git*"
+        tar --exclude="*.DS_Store" --exclude="*.git*" -czf ../deployment.tar.gz .
         cd ..
         
         # Also create zip as fallback
@@ -210,6 +210,8 @@ jobs:
 
     - name: Create Release
       if: success()
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         echo "🏷️ Creating release..."
         
