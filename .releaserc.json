@@ -65,19 +65,15 @@
       {
         "assets": [
           {
-            "path": "**/*.{html,css,js}",
-            "label": "Sources du jeu"
+            "path": "tower-rush-v*.zip",
+            "label": "Jeu complet (version ${nextRelease.version})"
           },
           {
-            "path": "assets/**/*",
-            "label": "Assets graphiques"
-          },
-          {
-            "path": "src/**/*",
-            "label": "Code source"
+            "path": "tower-rush-game.zip",
+            "label": "Jeu complet (version générique)"
           }
         ],
-        "successComment": "🎉 Cette release est maintenant disponible !\n\n- **Version**: ${nextRelease.version}\n- **Tag**: ${nextRelease.gitTag}\n- **Jouer**: [Lancer le jeu](https://gtko.github.io/towerRush/)\n\n${nextRelease.notes}"
+        "successComment": "🎉 Cette release est maintenant disponible !\n\n- **Version**: ${nextRelease.version}\n- **Tag**: ${nextRelease.gitTag}\n- **Jouer**: [Lancer le jeu](https://gtko.github.io/towerRush/)\n- **Télécharger**: Voir les assets ci-dessous\n\n${nextRelease.notes}"
       }
     ]
   ]

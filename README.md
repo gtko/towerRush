@@ -72,6 +72,8 @@ tower-rush/
 - **WebRTC (PeerJS)** : Pour le multijoueur peer-to-peer
 - **LocalStorage** : Pour sauvegarder les profils et scores
 - **GitHub Actions** : Pour le déploiement automatique
+- **Semantic Release** : Pour les versions automatiques
+- **BunnyCDN** : Pour l'hébergement et la distribution
 
 ## Développement
 
@@ -107,15 +109,30 @@ docs: mettre à jour le README
 
 Les releases sont automatiquement créées lors des merges dans `master` grâce à [semantic-release](https://semantic-release.gitbook.io/semantic-release/). Un changelog est généré automatiquement basé sur les commits.
 
-## Déploiement
+## Déploiement et Releases
 
-### GitHub Pages
+### 🚀 Workflow automatique
+
+Le projet utilise un workflow automatique pour le déploiement et les releases :
+
+1. **Push sur master** → **Déploiement BunnyCDN** (avec compression zip)
+2. **Déploiement réussi** → **Release automatique** (avec semantic-release)
+3. **Release créée** avec fichiers zip téléchargeables
+
+### 📦 Téléchargement
+
+- **Latest Release** : [Télécharger la dernière version](https://github.com/gtko/towerRush/releases/latest)
+- **Fichiers disponibles** :
+  - `tower-rush-v1.x.x.zip` : Version complète avec numéro de version
+  - `tower-rush-game.zip` : Version générique
+
+### 🌐 GitHub Pages
 
 Le jeu est automatiquement déployé sur GitHub Pages à chaque push sur la branche principale.
 
-### BunnyCDN
+### ⚡ BunnyCDN (Déploiement optimisé)
 
-Pour déployer sur BunnyCDN :
+Le déploiement BunnyCDN utilise maintenant la compression pour optimiser les transferts :
 
 1. **Configurer les secrets GitHub** :
    ```bash
@@ -129,15 +146,21 @@ Pour déployer sur BunnyCDN :
 2. **Informations requises** :
    - Nom de votre Storage Zone BunnyCDN
    - Mot de passe FTP/API de votre Storage Zone
-   - Région de votre Storage Zone
+   - Région de votre Storage Zone (Europe, US, Asia)
    - Clé API BunnyCDN (dans Account Settings)
    - ID de votre Pull Zone
 
-3. **Déploiement** :
-   - Automatique : À chaque push sur `main` ou `master`
-   - Manuel : Via GitHub Actions → Deploy to BunnyCDN → Run workflow
+3. **Processus de déploiement** :
+   - Création d'un package zip avec tous les fichiers
+   - Tentative d'extraction sur serveur (avec fallback)
+   - Purge automatique du cache CDN
+   - Notifications de succès/échec
 
-### Configuration manuelle des secrets
+4. **Déclenchement** :
+   - **Automatique** : À chaque push sur `main` ou `master`
+   - **Manuel** : Via GitHub Actions → Deploy to BunnyCDN → Run workflow
+
+### 🔧 Configuration manuelle des secrets
 
 Si vous préférez configurer manuellement, ajoutez ces secrets dans Settings → Secrets → Actions :
 
@@ -146,6 +169,12 @@ Si vous préférez configurer manuellement, ajoutez ces secrets dans Settings �
 - `BUNNY_STORAGE_ENDPOINT` : storage, ny.storage, la.storage, etc.
 - `BUNNY_API_KEY` : Votre clé API BunnyCDN
 - `BUNNY_PULL_ZONE_ID` : ID de votre pull zone
+
+### 📋 Monitoring des déploiements
+
+- **Actions** : Surveillez les workflows dans l'onglet Actions
+- **Releases** : Consultez l'historique des versions dans Releases
+- **Logs** : Vérifiez les logs de déploiement pour diagnostiquer les problèmes
 
 ## License
 

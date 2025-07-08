@@ -64,64 +64,105 @@ jobs:
           done
         }
         
-        # Note: BunnyCDN doesn't support recursive deletion, so we skip clearing
+        # Create deployment package
+        echo "Creating deployment package..."
         
-        # Upload all game files
-        echo "Starting upload..."
+        # Create temporary directory for deployment
+        mkdir -p deploy_temp
         
-        # Upload HTML files
-        for file in *.html; do
-          if [ -f "$file" ]; then
-            echo "Uploading: $file"
+        # Copy all necessary files
+        cp *.html deploy_temp/ 2>/dev/null || true
+        cp *.css deploy_temp/ 2>/dev/null || true
+        cp *.js deploy_temp/ 2>/dev/null || true
+        cp *.json deploy_temp/ 2>/dev/null || true
+        cp -r src deploy_temp/ 2>/dev/null || true
+        cp -r assets deploy_temp/ 2>/dev/null || true
+        
+        # Create zip file
+        cd deploy_temp
+        zip -r ../deployment.zip . -x "*.DS_Store" "*.git*"
+        cd ..
+        
+        echo "Deployment package created: $(ls -lh deployment.zip)"
+        
+        # Upload zip file
+        echo "Uploading deployment package..."
+        curl -X PUT \
+          -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+          -H "Content-Type: application/zip" \
+          --data-binary "@deployment.zip" \
+          --fail-with-body \
+          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/deployment.zip"
+        
+        # Extract zip on server (if supported by BunnyCDN)
+        echo "Attempting to extract zip on server..."
+        curl -X POST \
+          -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+          --fail-with-body \
+          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/deployment.zip?extract=true" || {
+          echo "Server extraction not supported, uploading individual files..."
+          
+          # Fallback: Upload individual files
+          cd deploy_temp
+          
+          # Upload HTML files
+          for file in *.html; do
+            if [ -f "$file" ]; then
+              echo "Uploading: $file"
+              curl -X PUT \
+                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+                -H "Content-Type: text/html" \
+                --data-binary "@$file" \
+                --fail-with-body \
+                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+            fi
+          done
+          
+          # Upload CSS files
+          for file in *.css; do
+            if [ -f "$file" ]; then
+              echo "Uploading: $file"
+              curl -X PUT \
+                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+                -H "Content-Type: text/css" \
+                --data-binary "@$file" \
+                --fail-with-body \
+                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+            fi
+          done
+          
+          # Upload JS files
+          for file in *.js; do
+            if [ -f "$file" ]; then
+              echo "Uploading: $file"
+              curl -X PUT \
+                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+                -H "Content-Type: application/javascript" \
+                --data-binary "@$file" \
+                --fail-with-body \
+                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+            fi
+          done
+          
+          # Upload manifest.json
+          if [ -f "manifest.json" ]; then
+            echo "Uploading: manifest.json"
             curl -X PUT \
               -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-              -H "Content-Type: text/html" \
-              --data-binary "@$file" \
+              -H "Content-Type: application/json" \
+              --data-binary "@manifest.json" \
               --fail-with-body \
-              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/manifest.json"
           fi
-        done
+          
+          # Upload directories
+          cd ..
+          upload_directory "deploy_temp/src" "/src/"
+          upload_directory "deploy_temp/assets" "/assets/"
+        }
         
-        # Upload CSS files
-        for file in *.css; do
-          if [ -f "$file" ]; then
-            echo "Uploading: $file"
-            curl -X PUT \
-              -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-              -H "Content-Type: text/css" \
-              --data-binary "@$file" \
-              --fail-with-body \
-              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
-          fi
-        done
-        
-        # Upload JS files
-        for file in *.js; do
-          if [ -f "$file" ]; then
-            echo "Uploading: $file"
-            curl -X PUT \
-              -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-              -H "Content-Type: application/javascript" \
-              --data-binary "@$file" \
-              --fail-with-body \
-              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
-          fi
-        done
-        
-        # Upload manifest.json
-        if [ -f "manifest.json" ]; then
-          echo "Uploading: manifest.json"
-          curl -X PUT \
-            -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-            -H "Content-Type: application/json" \
-            --data-binary "@manifest.json" \
-            --fail-with-body \
-            "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/manifest.json"
-        fi
-        
-        # Upload directories
-        upload_directory "src" "/src/"
-        upload_directory "assets" "/assets/"
+        # Cleanup
+        rm -rf deploy_temp deployment.zip
         
         echo "Upload completed!"
 
