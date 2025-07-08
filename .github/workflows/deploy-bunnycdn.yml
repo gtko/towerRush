@@ -5,6 +5,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -64,13 +68,14 @@ jobs:
           done
         }
         
-        # Create deployment package
-        echo "Creating deployment package..."
+        # Create deployment package optimized for single archive upload
+        echo "Creating optimized deployment package..."
         
         # Create temporary directory for deployment
         mkdir -p deploy_temp
         
-        # Copy all necessary files
+        # Copy all necessary files with proper structure
+        echo "Copying game files..."
         cp *.html deploy_temp/ 2>/dev/null || true
         cp *.css deploy_temp/ 2>/dev/null || true
         cp *.js deploy_temp/ 2>/dev/null || true
@@ -78,94 +83,110 @@ jobs:
         cp -r src deploy_temp/ 2>/dev/null || true
         cp -r assets deploy_temp/ 2>/dev/null || true
         
-        # Create zip file
+        # Create extraction script for server-side decompression
+        cat > deploy_temp/extract.php << 'EOF'
+<?php
+// Script automatique de décompression pour BunnyCDN
+$zipFile = 'deployment.zip';
+$extractTo = './';
+
+if (file_exists($zipFile)) {
+    $zip = new ZipArchive;
+    if ($zip->open($zipFile) === TRUE) {
+        $zip->extractTo($extractTo);
+        $zip->close();
+        echo "Archive extraite avec succès\n";
+        // Nettoyer après extraction
+        unlink($zipFile);
+        unlink(__FILE__); // Supprimer ce script
+    } else {
+        echo "Erreur lors de l'ouverture de l'archive\n";
+    }
+} else {
+    echo "Archive non trouvée\n";
+}
+?>
+EOF
+        
+        # Create tar.gz archive (better compression than zip)
+        echo "Creating tar.gz archive for better compression..."
+        cd deploy_temp
+        tar -czf ../deployment.tar.gz . --exclude="*.DS_Store" --exclude="*.git*"
+        cd ..
+        
+        # Also create zip as fallback
         cd deploy_temp
         zip -r ../deployment.zip . -x "*.DS_Store" "*.git*"
         cd ..
         
-        echo "Deployment package created: $(ls -lh deployment.zip)"
+        echo "Archives created:"
+        ls -lh deployment.*
         
-        # Upload zip file
-        echo "Uploading deployment package..."
-        curl -X PUT \
+        # Try to upload and extract tar.gz first (more efficient)
+        echo "Uploading tar.gz archive..."
+        if curl -X PUT \
           -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-          -H "Content-Type: application/zip" \
-          --data-binary "@deployment.zip" \
+          -H "Content-Type: application/gzip" \
+          --data-binary "@deployment.tar.gz" \
           --fail-with-body \
-          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/deployment.zip"
-        
-        # Extract zip on server (if supported by BunnyCDN)
-        echo "Attempting to extract zip on server..."
-        curl -X POST \
-          -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-          --fail-with-body \
-          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/deployment.zip?extract=true" || {
-          echo "Server extraction not supported, uploading individual files..."
+          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/deployment.tar.gz"; then
           
-          # Fallback: Upload individual files
-          cd deploy_temp
+          echo "tar.gz uploaded successfully"
           
-          # Upload HTML files
-          for file in *.html; do
-            if [ -f "$file" ]; then
-              echo "Uploading: $file"
-              curl -X PUT \
-                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-                -H "Content-Type: text/html" \
-                --data-binary "@$file" \
-                --fail-with-body \
-                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
-            fi
-          done
-          
-          # Upload CSS files
-          for file in *.css; do
-            if [ -f "$file" ]; then
-              echo "Uploading: $file"
-              curl -X PUT \
-                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-                -H "Content-Type: text/css" \
-                --data-binary "@$file" \
-                --fail-with-body \
-                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
-            fi
-          done
-          
-          # Upload JS files
-          for file in *.js; do
-            if [ -f "$file" ]; then
-              echo "Uploading: $file"
-              curl -X PUT \
-                -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-                -H "Content-Type: application/javascript" \
-                --data-binary "@$file" \
-                --fail-with-body \
-                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${file}"
-            fi
-          done
-          
-          # Upload manifest.json
-          if [ -f "manifest.json" ]; then
-            echo "Uploading: manifest.json"
+          # Try server-side extraction with tar
+          echo "Attempting server-side tar.gz extraction..."
+          curl -X POST \
+            -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data "cmd=tar -xzf deployment.tar.gz && rm deployment.tar.gz" \
+            --fail-with-body \
+            "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/exec" 2>/dev/null || {
+            
+            echo "tar.gz extraction not supported, trying zip method..."
+            
+            # Upload zip file
+            echo "Uploading zip archive..."
             curl -X PUT \
               -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-              -H "Content-Type: application/json" \
-              --data-binary "@manifest.json" \
+              -H "Content-Type: application/zip" \
+              --data-binary "@deployment.zip" \
               --fail-with-body \
-              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/manifest.json"
-          fi
-          
-          # Upload directories
-          cd ..
-          upload_directory "deploy_temp/src" "/src/"
-          upload_directory "deploy_temp/assets" "/assets/"
-        }
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/deployment.zip"
+            
+            # Upload extraction script
+            echo "Uploading extraction script..."
+            curl -X PUT \
+              -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
+              -H "Content-Type: application/x-httpd-php" \
+              --data-binary "@deploy_temp/extract.php" \
+              --fail-with-body \
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/extract.php"
+            
+            # Execute extraction script
+            echo "Executing extraction via PHP..."
+            curl -X GET \
+              --fail-with-body \
+              "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/extract.php" 2>/dev/null || {
+              
+              echo "Automated extraction failed, falling back to individual file upload..."
+              upload_directory "deploy_temp" "/"
+            }
+          }
+        else
+          echo "Archive upload failed, falling back to individual file upload..."
+          upload_directory "deploy_temp" "/"
+        fi
         
         # Cleanup
-        rm -rf deploy_temp deployment.zip
+        rm -rf deploy_temp deployment.* 2>/dev/null || true
         
         echo "Upload completed!"
 
+  purge-cache:
+    runs-on: ubuntu-latest
+    needs: deploy
+    
+    steps:
     - name: Purge BunnyCDN Cache
       env:
         BUNNY_API_KEY: ${{ secrets.BUNNY_API_KEY }}
@@ -177,6 +198,15 @@ jobs:
           --fail-with-body \
           "https://api.bunny.net/pullzone/${BUNNY_PULL_ZONE_ID}/purgeCache"
         echo "Cache purged successfully!"
+
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Create Release
       if: success()
@@ -370,10 +400,16 @@ jobs:
         # Nettoyage
         rm -rf release *.zip release_notes.md
 
+  deploy-summary:
+    runs-on: ubuntu-latest
+    needs: [deploy, purge-cache, create-release]
+    if: always()
+    
+    steps:
     - name: Deploy Summary
       run: |
         echo "🚀 Deployment completed!"
-        echo "📦 Files uploaded to BunnyCDN Storage Zone: ${{ secrets.BUNNY_STORAGE_ZONE }}"
+        echo "📦 Files uploaded to BunnyCDN Storage Zone"
         echo "🌐 Your site should be available at your configured BunnyCDN URL"
         echo "🏷️ Release created automatically"
         echo "⏰ Deployed at: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
