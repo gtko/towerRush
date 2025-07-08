@@ -42,24 +42,21 @@ jobs:
           local local_path=$1
           local remote_path=$2
           
-          # Create directory if it doesn't exist
-          echo "Creating directory: $remote_path"
-          curl -X MKCOL \
-            -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-            --fail-with-body \
-            "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}${remote_path}" || true
-          
           # Upload files in current directory
           for file in "$local_path"/*; do
             if [ -f "$file" ]; then
               filename=$(basename "$file")
+              # URL encode the filename to handle spaces
+              encoded_filename=$(echo -n "$filename" | sed 's/ /%20/g')
+              encoded_path=$(echo -n "${remote_path}${encoded_filename}" | sed 's/ /%20/g')
+              
               echo "Uploading: $file to ${remote_path}${filename}"
               curl -X PUT \
                 -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
                 -H "Content-Type: $(file -b --mime-type "$file")" \
                 --data-binary "@$file" \
                 --fail-with-body \
-                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}${remote_path}${filename}"
+                "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}${encoded_path}"
             elif [ -d "$file" ]; then
               dirname=$(basename "$file")
               upload_directory "$file" "${remote_path}${dirname}/"
@@ -67,11 +64,7 @@ jobs:
           done
         }
         
-        # Clear existing content (optional - remove if you want to keep old files)
-        echo "Clearing existing content..."
-        curl -X DELETE \
-          -H "AccessKey: $BUNNY_STORAGE_PASSWORD" \
-          "https://${BUNNY_STORAGE_ENDPOINT}.bunnycdn.com/${BUNNY_STORAGE_ZONE}/" || true
+        # Note: BunnyCDN doesn't support recursive deletion, so we skip clearing
         
         # Upload all game files
         echo "Starting upload..."
