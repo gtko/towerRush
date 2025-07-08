@@ -24,12 +24,32 @@
                 <div class="profile-avatar" id="profileAvatar">👤</div>
                 <div class="profile-info">
                     <div class="profile-name" id="profileName">Joueur</div>
+                    <div class="profile-stats" id="profileStats" style="display: none;">
+                        <span class="stat-mini">🎮 <span id="statGames">0</span></span>
+                        <span class="stat-mini">🏆 <span id="statWins">0</span></span>
+                        <span class="stat-mini">⭐ <span id="statBestScore">0</span></span>
+                    </div>
                     <button class="profile-edit-btn" id="profileEditBtn">Modifier</button>
+                </div>
+                <div class="profile-cloud-status" id="profileCloudStatus">
+                    <span class="cloud-icon">☁️</span>
+                    <span class="cloud-text">Local</span>
                 </div>
             </div>
         </div>
         
         <div class="menu-content">
+            <!-- Section Leaderboard -->
+            <div class="menu-section">
+                <h2 class="section-title">🏆 Leaderboard</h2>
+                <div class="leaderboard-preview" id="leaderboardPreview">
+                    <div class="loading-leaderboard">Chargement...</div>
+                </div>
+                <button id="showFullLeaderboardBtn" class="btn btn-outline btn-compact">Voir classement complet</button>
+            </div>
+            
+            <div class="menu-divider"></div>
+            
             <!-- Section Solo -->
             <div class="menu-section">
                 <h2 class="section-title">Solo</h2>
@@ -236,6 +256,15 @@
                         <div class="avatar-option" data-avatar="🌟">🌟</div>
                     </div>
                 </div>
+                
+                <div class="profile-form-group cloud-section">
+                    <label class="profile-form-label">💾 Sauvegarde Cloud (Optionnel)</label>
+                    <div class="cloud-options">
+                        <button type="button" id="createAccountBtn" class="btn btn-outline btn-sm">Créer un compte</button>
+                        <button type="button" id="loginAccountBtn" class="btn btn-outline btn-sm">Se connecter</button>
+                    </div>
+                    <p class="cloud-description">Créez un compte pour sauvegarder vos scores et voir le leaderboard global!</p>
+                </div>
             </div>
             
             <div class="profile-modal-footer">
@@ -322,6 +351,8 @@
     <script src="src/entities/Building.js"></script>
     <script src="src/entities/UnitGroup.js"></script>
     <script src="src/multiplayer/MultiplayerManager.js"></script>
+    <script src="src/database/NeonClient.js"></script>
+    <script src="src/core/LeaderboardManager.js"></script>
     <script src="src/core/Game.js"></script>
     
     <script>
@@ -330,6 +361,8 @@
         window.addEventListener('load', () => {
             // Initialiser le jeu directement
             game = new Game();
+            // Rendre le jeu accessible globalement pour le leaderboard
+            window.game = game;
         });
     </script>
     

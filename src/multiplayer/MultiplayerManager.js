@@ -376,7 +376,12 @@ class MultiplayerManager {
             
             // Puis initialiser le jeu avec les données reçues
             setTimeout(() => {
-                this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex, data.totalPlayers);
+                // S'assurer que le canvas est initialisé avant de démarrer le jeu
+                if (this.game.initializeCanvas()) {
+                    this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex, data.totalPlayers);
+                } else {
+                    console.error('Impossible d\'initialiser le canvas pour le jeu multijoueur');
+                }
             }, 100);
         }
     }
@@ -791,6 +796,26 @@ class MultiplayerManager {
     broadcastGameState() {
         if (!this.isHost) return;
         
+        const now = Date.now();
+        
+        // Throttling agressif pour éviter la surcharge réseau
+        if (this.lastGameStateBroadcast && now - this.lastGameStateBroadcast < 150) {
+            // Programmer un envoi différé si nécessaire
+            if (!this.pendingGameStateBroadcast) {
+                this.pendingGameStateBroadcast = setTimeout(() => {
+                    this.forceBroadcastGameState();
+                    this.pendingGameStateBroadcast = null;
+                }, 150 - (now - this.lastGameStateBroadcast));
+            }
+            return;
+        }
+        
+        this.forceBroadcastGameState();
+    }
+    
+    forceBroadcastGameState() {
+        if (!this.isHost) return;
+        
         const gameState = this.game.getGameState();
         const message = {
             type: 'game_state',
@@ -802,6 +827,8 @@ class MultiplayerManager {
                 this.sendMessage(conn, message);
             }
         });
+        
+        this.lastGameStateBroadcast = Date.now();
     }
     
     startGameFromLobby() {
@@ -839,7 +866,58 @@ class MultiplayerManager {
         
         // Masquer le lobby et afficher le jeu (pour tous les joueurs)
         document.getElementById('lobbyScreen').style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'flex';
+        
+        // Vérifier que le gameContainer existe
+        const gameContainer = document.getElementById('gameContainer');
+        if (gameContainer) {
+            gameContainer.style.display = 'flex';
+            console.log('gameContainer affiché pour le joueur');
+        } else {
+            console.error('gameContainer introuvable! Vérifiez que vous êtes sur game.html');
+        }
+        
+        // Vérifier que le canvas existe et initialiser si nécessaire
+        const gameCanvas = document.getElementById('gameCanvas');
+        if (gameCanvas) {
+            console.log('gameCanvas trouvé');
+            
+            // Diagnostic CSS du canvas
+            const canvasStyle = window.getComputedStyle(gameCanvas);
+            console.log('Canvas display:', canvasStyle.display);
+            console.log('Canvas visibility:', canvasStyle.visibility);
+            console.log('Canvas dimensions:', canvasStyle.width, 'x', canvasStyle.height);
+            console.log('Canvas position:', canvasStyle.position);
+            
+            // Forcer l'affichage du canvas
+            gameCanvas.style.display = 'block';
+            gameCanvas.style.visibility = 'visible';
+            
+            // Initialiser le canvas pour les joueurs distants
+            if (this.game && this.game.initializeCanvas) {
+                this.game.initializeCanvas();
+            }
+            
+            // Forcer un redimensionnement pour déclencher l'affichage
+            setTimeout(() => {
+                if (this.game && this.game.setupCanvas) {
+                    this.game.setupCanvas();
+                }
+                // Déclencher un événement resize pour forcer le redimensionnement
+                window.dispatchEvent(new Event('resize'));
+                
+                // Forcer le démarrage du jeu si le canvas est maintenant disponible
+                if (this.game && this.game.canvas && this.game.ctx && !this.game.gameStarted) {
+                    console.log('Forcer le démarrage du jeu pour le joueur distant');
+                    this.game.gameStarted = true;
+                    if (!this.game.gameLoopStarted) {
+                        this.game.gameLoopStarted = true;
+                        this.game.gameLoop();
+                    }
+                }
+            }, 100);
+        } else {
+            console.error('gameCanvas introuvable! Le canvas ne peut pas être affiché');
+        }
         
         // Démarrer la musique (pour tous les joueurs)
         setTimeout(() => {

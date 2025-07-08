@@ -1,6 +1,10 @@
 class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            console.error('Canvas gameCanvas introuvable! Vérifiez que vous êtes sur la bonne page.');
+            return;
+        }
         this.ctx = this.canvas.getContext('2d');
         this.buildings = [];
         this.unitGroups = [];
@@ -45,13 +49,19 @@ class Game {
         // Timer pour le mode arrière-plan
         this.backgroundTimer = null;
         this.backgroundInterval = null;
+        this.gameStartTime = null;
         
-        // Système de profil
+        // Système de profil et base de données
+        this.neonClient = null;
+        this.leaderboardManager = null;
         this.playerProfile = this.loadProfile();
+        this.initializeDatabase();
         
-        this.setupCanvas();
-        this.loadBackground();
-        this.setupEventListeners();
+        if (this.canvas) {
+            this.setupCanvas();
+            this.loadBackground();
+            this.setupEventListeners();
+        }
         this.setupMenuListeners();
         this.setupAudioControls();
         this.setupVisibilityHandlers();
@@ -69,8 +79,20 @@ class Game {
     }
     
     setupCanvas() {
+        if (!this.canvas) {
+            console.error('Canvas non disponible pour setupCanvas');
+            return;
+        }
+        
         // Définir la taille du canvas en fonction de la fenêtre
         const container = this.canvas.parentElement;
+        
+        if (!container) {
+            console.error('Container parent du canvas introuvable');
+            return;
+        }
+        
+        console.log('setupCanvas - Container:', container.id, 'Client dimensions:', container.clientWidth, 'x', container.clientHeight);
         const containerWidth = container.clientWidth;
         const containerHeight = container.clientHeight;
         
@@ -97,7 +119,12 @@ class Game {
         this.canvas.style.width = `${canvasWidth}px`;
         this.canvas.style.height = `${canvasHeight}px`;
         
+        // S'assurer que le canvas est visible
+        this.canvas.style.display = 'block';
+        this.canvas.style.visibility = 'visible';
+        
         console.log(`Canvas resolution: 1920x1080, Display size: ${Math.round(canvasWidth)}x${Math.round(canvasHeight)}`);
+        console.log('Canvas final style:', this.canvas.style.display, this.canvas.style.visibility);
     }
     
     handleResize() {
@@ -487,6 +514,32 @@ class Game {
         const ownerMultiplier = building.owner === 'neutral' ? 1.5 : 1.0;
         
         return baseRadius * multiplier * ownerMultiplier;
+    }
+
+    initializeCanvas() {
+        if (this.canvas) {
+            console.log('Canvas déjà initialisé');
+            return true;
+        }
+        
+        this.canvas = document.getElementById('gameCanvas');
+        if (!this.canvas) {
+            console.error('Canvas toujours introuvable lors de l\'initialisation');
+            return false;
+        }
+        
+        this.ctx = this.canvas.getContext('2d');
+        this.setupCanvas();
+        this.loadBackground();
+        this.setupEventListeners();
+        
+        // Forcer un redimensionnement pour s'assurer que le canvas est visible
+        setTimeout(() => {
+            this.setupCanvas();
+        }, 50);
+        
+        console.log('Canvas initialisé avec succès');
+        return true;
     }
 
     setupEventListeners() {
@@ -880,6 +933,7 @@ class Game {
         if (clickedBuilding) {
             // Clic gauche sert uniquement à sélectionner les bâtiments du joueur
             if (this.canPlayerControl(clickedBuilding)) {
+                console.log(`Clic sur bâtiment contrôlable: ${clickedBuilding.owner} (joueur: ${this.getLocalPlayerOwner()})`);
                 const isCtrlPressed = event && (event.ctrlKey || event.metaKey);
                 
                 if (isCtrlPressed) {
@@ -887,19 +941,24 @@ class Game {
                     if (clickedBuilding.selected) {
                         clickedBuilding.selected = false;
                         this.selectedBuildings = this.selectedBuildings.filter(b => b !== clickedBuilding);
+                        console.log('Bâtiment désélectionné');
                     } else {
                         clickedBuilding.selected = true;
                         this.selectedBuildings.push(clickedBuilding);
+                        console.log('Bâtiment ajouté à la sélection');
                     }
                 } else {
                     // Clic simple : remplacer la sélection
                     this.clearSelection();
                     clickedBuilding.selected = true;
                     this.selectedBuildings = [clickedBuilding];
+                    console.log('Sélection remplacée par ce bâtiment');
                 }
                 
                 this.updateSelectedBuildingInfo();
                 this.updateUI();
+            } else {
+                console.log(`Clic sur bâtiment non-contrôlable: ${clickedBuilding ? clickedBuilding.owner : 'aucun'} (joueur: ${this.getLocalPlayerOwner()})`);
             }
         } else {
             // Clic dans le vide = tout désélectionner (sauf si Ctrl/Cmd est enfoncé)
@@ -928,7 +987,23 @@ class Game {
         // Envoyer les unités depuis chaque bâtiment sélectionné
         this.selectedBuildings.forEach(building => {
             if (building.units > 0) {
-                building.sendUnits(this.targetBuilding, this.sendPercentage, this);
+                if (this.isMultiplayer && this.multiplayerManager) {
+                    // Mode multijoueur: envoyer l'action via le réseau
+                    const sourceId = this.buildings.indexOf(building);
+                    const targetId = this.buildings.indexOf(this.targetBuilding);
+                    
+                    this.multiplayerManager.sendAction({
+                        type: 'send_units',
+                        sourceId: sourceId,
+                        targetId: targetId,
+                        percentage: this.sendPercentage
+                    });
+                    
+                    console.log(`Action réseau envoyée: bâtiment ${sourceId} -> ${targetId} (${this.sendPercentage}%)`);
+                } else {
+                    // Mode solo: traitement direct
+                    building.sendUnits(this.targetBuilding, this.sendPercentage, this);
+                }
             }
         });
         
@@ -991,9 +1066,15 @@ class Game {
         const newGroup = new UnitGroup(source, target, units, source.owner);
         this.unitGroups.push(newGroup);
         
-        // En multijoueur, diffuser immédiatement le nouvel état
+        // En multijoueur, diffuser le nouvel état avec throttling
         if (this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost) {
-            setTimeout(() => this.multiplayerManager.broadcastGameState(), 50);
+            // Délayer et grouper les mises à jour au lieu d'envoyer immédiatement
+            if (!this.pendingBroadcast) {
+                this.pendingBroadcast = setTimeout(() => {
+                    this.multiplayerManager.broadcastGameState();
+                    this.pendingBroadcast = null;
+                }, 100); // Grouper les changements sur 100ms
+            }
         }
     }
 
@@ -1041,22 +1122,23 @@ class Game {
         // IA simple (désactivée en multijoueur)
         this.updateAI();
         
-        // Synchronisation multijoueur pour l'hôte (limitée pour les performances)
+        // Synchronisation multijoueur pour l'hôte (optimisée pour les performances)
         if (this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost) {
             const currentState = this.getGameStateChecksum();
             const now = Date.now();
             
+            // Optimisation: Réduire drastiquement la fréquence de synchronisation
             if (previousState !== currentState) {
-                // L'état a changé, diffuser aux clients avec throttling
-                if (!this.lastBroadcast || now - this.lastBroadcast > 100) { // Max 10 fois par seconde
+                // L'état a changé, diffuser aux clients avec throttling agressif
+                if (!this.lastBroadcast || now - this.lastBroadcast > 200) { // Max 5 fois par seconde au lieu de 10
                     this.multiplayerManager.broadcastGameState();
                     this.lastBroadcast = now;
                 }
             }
             
-            // Synchronisation forcée périodique en arrière-plan
+            // Synchronisation forcée périodique en arrière-plan (réduite)
             if (document.visibilityState !== 'visible') {
-                if (!this.lastBackgroundSync || now - this.lastBackgroundSync > 1000) { // Chaque seconde en arrière-plan
+                if (!this.lastBackgroundSync || now - this.lastBackgroundSync > 2000) { // Toutes les 2 secondes au lieu d'1
                     this.multiplayerManager.broadcastGameState();
                     this.lastBackgroundSync = now;
                 }
@@ -1248,6 +1330,23 @@ class Game {
 
     endGame(title, message) {
         this.gameOver = true;
+        
+        // Calculer la durée de la partie
+        const gameDuration = this.gameStartTime ? Math.floor((Date.now() - this.gameStartTime) / 1000) : 0;
+        
+        // Compter les bâtiments capturés/perdus pour les stats
+        const playerBuildings = this.buildings.filter(b => b.owner === 'player').length;
+        const totalBuildings = this.buildings.length;
+        const isVictory = title.includes('Victoire');
+        
+        // Sauvegarder le résultat dans la base de données
+        this.saveGameResult(
+            isVictory, 
+            gameDuration, 
+            isVictory ? totalBuildings - playerBuildings : 0, // bâtiments capturés
+            isVictory ? 0 : totalBuildings - playerBuildings  // bâtiments perdus
+        );
+        
         document.getElementById('gameOverTitle').textContent = title;
         document.getElementById('gameOverMessage').textContent = message;
         
@@ -1255,7 +1354,7 @@ class Game {
         const gameOverContent = document.querySelector('.game-over-content');
         const gameOverIcon = document.getElementById('gameOverIcon');
         
-        if (title.includes('Victoire')) {
+        if (isVictory) {
             gameOverContent.classList.add('victory');
             gameOverContent.classList.remove('defeat');
             gameOverIcon.textContent = '🏆';
@@ -1283,6 +1382,7 @@ class Game {
         // Utiliser le paramètre si fourni (multijoueur), sinon l'interface (local)
         this.playerCount = playerCount || parseInt(document.getElementById('playerCount').value);
         this.gameStarted = true;
+        this.gameStartTime = Date.now(); // Marquer le début de la partie
         console.log(`Démarrage du jeu avec ${this.playerCount} joueurs`);
         document.getElementById('menuScreen').style.display = 'none';
         document.getElementById('gameContainer').style.display = 'flex';
@@ -1534,6 +1634,11 @@ class Game {
     }
 
     draw() {
+        if (!this.canvas || !this.ctx) {
+            console.error('Canvas ou contexte non disponible pour le rendu');
+            return;
+        }
+        
         // Effacer le canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -1749,7 +1854,7 @@ class Game {
     }
 
     gameLoop() {
-        if (this.gameStarted) {
+        if (this.gameStarted && this.canvas && this.ctx) {
             this.update();
             this.draw();
         }
@@ -1962,8 +2067,10 @@ class Game {
     }
     
     initializeMultiplayerGame(networkGameState, playerIndex, realPlayerCount) {
-        this.localPlayerIndex = playerIndex;
         this.isMultiplayer = true;
+        this.localPlayerIndex = playerIndex;
+        console.log(`Initialisation multijoueur: playerIndex=${playerIndex}, isHost=${this.multiplayerManager?.isHost}`);
+        console.log(`Joueur local sera: ${this.getPlayerOwner(playerIndex)}`);
         
         if (networkGameState) {
             // Recevoir l'état initial du réseau (pour les clients)
@@ -2010,14 +2117,19 @@ class Game {
         const sourceBuilding = this.getBuildingById(action.sourceId);
         const targetBuilding = this.getBuildingById(action.targetId);
         
+        console.log(`Traitement action réseau: joueur ${playerId} envoie de ${action.sourceId} vers ${action.targetId}`);
+        
         if (sourceBuilding && targetBuilding && 
             this.canPlayerControlBuilding(playerId, sourceBuilding)) {
+            console.log(`Action autorisée: ${sourceBuilding.owner} (${sourceBuilding.units} unités) -> ${targetBuilding.owner}`);
             sourceBuilding.sendUnits(targetBuilding, action.percentage, this);
             
             // Diffuser le nouvel état à tous les clients
             if (this.multiplayerManager && this.multiplayerManager.isHost) {
                 this.multiplayerManager.broadcastGameState();
             }
+        } else {
+            console.log(`Action refusée: source=${!!sourceBuilding}, target=${!!targetBuilding}, contrôle=${this.canPlayerControlBuilding(playerId, sourceBuilding)}`);
         }
     }
     
@@ -2114,15 +2226,27 @@ class Game {
         // Mettre à jour les groupes d'unités (ils ne sont pas sélectionnables)
         if (gameState.unitGroups) {
             this.unitGroups = gameState.unitGroups.map(groupData => {
-                const sourceObj = { x: groupData.startX, y: groupData.startY };
-                const targetObj = { x: groupData.targetX, y: groupData.targetY };
+                // Trouver les vrais bâtiments source et target
+                const sourceBuilding = this.buildings.find(b => b.x === groupData.startX && b.y === groupData.startY);
+                const targetBuilding = this.buildings.find(b => b.x === groupData.targetX && b.y === groupData.targetY);
                 
-                const group = new UnitGroup(sourceObj, targetObj, groupData.units, groupData.owner);
+                const group = new UnitGroup(
+                    sourceBuilding || { x: groupData.startX, y: groupData.startY },
+                    targetBuilding || { x: groupData.targetX, y: groupData.targetY },
+                    groupData.units, 
+                    groupData.owner
+                );
+                
                 group.x = groupData.x;
                 group.y = groupData.y;
                 group.progress = groupData.progress || 0;
                 group.speed = groupData.speed || 30;
                 group.lastUpdate = groupData.lastUpdate || Date.now();
+                
+                // S'assurer que les références sont correctes
+                group.source = sourceBuilding;
+                group.target = targetBuilding;
+                
                 group.loadSprite();
                 
                 return group;
@@ -2257,7 +2381,13 @@ class Game {
     getLocalPlayerOwner() {
         // Obtenir le propriétaire associé au joueur local
         if (this.isMultiplayer) {
-            return this.getPlayerOwner(this.localPlayerIndex);
+            const owner = this.getPlayerOwner(this.localPlayerIndex);
+            // Log seulement la première fois ou si l'index change
+            if (!this.lastLoggedPlayerIndex || this.lastLoggedPlayerIndex !== this.localPlayerIndex) {
+                console.log(`Joueur local: index ${this.localPlayerIndex} -> propriétaire "${owner}"`);
+                this.lastLoggedPlayerIndex = this.localPlayerIndex;
+            }
+            return owner;
         } else {
             return 'player'; // Mode local classique
         }
@@ -2496,6 +2626,326 @@ class Game {
                 }
             });
         }
+        
+        // Gestionnaires pour les comptes cloud
+        const createAccountBtn = document.getElementById('createAccountBtn');
+        const loginAccountBtn = document.getElementById('loginAccountBtn');
+        
+        if (createAccountBtn) {
+            createAccountBtn.addEventListener('click', () => {
+                this.showCloudAccountDialog('create');
+            });
+        }
+        
+        if (loginAccountBtn) {
+            loginAccountBtn.addEventListener('click', () => {
+                this.showCloudAccountDialog('login');
+            });
+        }
+    }
+    
+    showCloudAccountDialog(mode) {
+        if (!this.neonClient) {
+            alert('Service cloud non disponible');
+            return;
+        }
+        
+        const isCreate = mode === 'create';
+        const title = isCreate ? 'Créer un compte' : 'Se connecter';
+        const buttonText = isCreate ? 'Créer' : 'Se connecter';
+        
+        // Créer le modal de compte cloud
+        const modal = document.createElement('div');
+        modal.className = 'cloud-account-modal';
+        modal.innerHTML = `
+            <div class="cloud-account-content">
+                <div class="cloud-account-header">
+                    <h2>${title}</h2>
+                    <button class="cloud-account-close">×</button>
+                </div>
+                
+                <div class="cloud-account-body">
+                    <div class="cloud-form-group">
+                        <label>Email</label>
+                        <input type="email" id="cloudEmail" class="cloud-input" placeholder="votre@email.com" required>
+                    </div>
+                    
+                    <div class="cloud-form-group">
+                        <label>Mot de passe</label>
+                        <input type="password" id="cloudPassword" class="cloud-input" placeholder="••••••••" required>
+                    </div>
+                    
+                    ${isCreate ? `
+                        <div class="cloud-form-group">
+                            <label>Confirmer le mot de passe</label>
+                            <input type="password" id="cloudPasswordConfirm" class="cloud-input" placeholder="••••••••" required>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="cloud-info">
+                        ${isCreate ? 
+                            'Créez un compte pour sauvegarder vos scores et accéder au leaderboard global.' :
+                            'Connectez-vous à votre compte existant.'
+                        }
+                    </div>
+                    
+                    <div class="cloud-account-error" id="cloudAccountError" style="display: none;"></div>
+                </div>
+                
+                <div class="cloud-account-footer">
+                    <button class="btn btn-secondary" id="cloudCancelBtn">Annuler</button>
+                    <button class="btn btn-primary" id="cloudSubmitBtn">${buttonText}</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Ajouter les styles CSS dynamiquement
+        if (!document.getElementById('cloudAccountStyles')) {
+            const styles = document.createElement('style');
+            styles.id = 'cloudAccountStyles';
+            styles.textContent = `
+                .cloud-account-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(5px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 11000;
+                    padding: var(--spacing-md);
+                }
+                
+                .cloud-account-content {
+                    background: var(--bg-secondary);
+                    border-radius: var(--radius-lg);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    box-shadow: var(--shadow-xl);
+                    width: 100%;
+                    max-width: 400px;
+                    overflow: hidden;
+                }
+                
+                .cloud-account-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: var(--spacing-lg);
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                    background: var(--bg-tertiary);
+                }
+                
+                .cloud-account-header h2 {
+                    margin: 0;
+                    color: var(--text-primary);
+                    font-size: 1.25rem;
+                    font-weight: 700;
+                }
+                
+                .cloud-account-close {
+                    width: 32px;
+                    height: 32px;
+                    border: none;
+                    background: var(--bg-secondary);
+                    color: var(--text-secondary);
+                    font-size: 1.25rem;
+                    border-radius: 50%;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all var(--transition-base);
+                }
+                
+                .cloud-account-close:hover {
+                    background: var(--accent);
+                    color: white;
+                }
+                
+                .cloud-account-body {
+                    padding: var(--spacing-lg);
+                }
+                
+                .cloud-form-group {
+                    margin-bottom: var(--spacing-md);
+                }
+                
+                .cloud-form-group label {
+                    display: block;
+                    margin-bottom: var(--spacing-xs);
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    font-size: 0.875rem;
+                }
+                
+                .cloud-input {
+                    width: 100%;
+                    padding: var(--spacing-sm);
+                    background: var(--bg-tertiary);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: var(--radius-sm);
+                    color: var(--text-primary);
+                    font-size: 0.875rem;
+                    transition: border-color var(--transition-base);
+                }
+                
+                .cloud-input:focus {
+                    outline: none;
+                    border-color: var(--primary);
+                }
+                
+                .cloud-info {
+                    font-size: 0.75rem;
+                    color: var(--text-secondary);
+                    margin-bottom: var(--spacing-md);
+                    padding: var(--spacing-sm);
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: var(--radius-sm);
+                }
+                
+                .cloud-account-error {
+                    background: rgba(244, 67, 54, 0.1);
+                    color: var(--accent);
+                    padding: var(--spacing-sm);
+                    border-radius: var(--radius-sm);
+                    font-size: 0.875rem;
+                    margin-bottom: var(--spacing-md);
+                    border: 1px solid rgba(244, 67, 54, 0.3);
+                }
+                
+                .cloud-account-footer {
+                    display: flex;
+                    gap: var(--spacing-sm);
+                    padding: var(--spacing-lg);
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                    justify-content: flex-end;
+                }
+            `;
+            document.head.appendChild(styles);
+        }
+        
+        // Ajouter les événements
+        const closeBtn = modal.querySelector('.cloud-account-close');
+        const cancelBtn = modal.querySelector('#cloudCancelBtn');
+        const submitBtn = modal.querySelector('#cloudSubmitBtn');
+        const emailInput = modal.querySelector('#cloudEmail');
+        const passwordInput = modal.querySelector('#cloudPassword');
+        const passwordConfirmInput = modal.querySelector('#cloudPasswordConfirm');
+        const errorDiv = modal.querySelector('#cloudAccountError');
+        
+        const closeModal = () => {
+            modal.remove();
+        };
+        
+        const showError = (message) => {
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        };
+        
+        const hideError = () => {
+            errorDiv.style.display = 'none';
+        };
+        
+        const handleSubmit = async () => {
+            hideError();
+            
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            
+            if (!email || !password) {
+                showError('Veuillez remplir tous les champs');
+                return;
+            }
+            
+            if (isCreate) {
+                const passwordConfirm = passwordConfirmInput.value;
+                if (password !== passwordConfirm) {
+                    showError('Les mots de passe ne correspondent pas');
+                    return;
+                }
+                
+                if (password.length < 6) {
+                    showError('Le mot de passe doit contenir au moins 6 caractères');
+                    return;
+                }
+            }
+            
+            submitBtn.textContent = 'Chargement...';
+            submitBtn.disabled = true;
+            
+            try {
+                if (isCreate) {
+                    const result = await this.neonClient.createAccountProfile(
+                        this.playerProfile.name,
+                        this.playerProfile.avatar,
+                        email,
+                        password
+                    );
+                    console.log('Compte créé:', result);
+                    alert('Compte créé avec succès!');
+                } else {
+                    const result = await this.neonClient.loginWithEmail(email, password);
+                    console.log('Connexion réussie:', result);
+                    
+                    // Mettre à jour le profil local
+                    this.playerProfile = {
+                        name: result.display_name,
+                        avatar: result.avatar_emoji
+                    };
+                    this.updateProfileDisplay();
+                    
+                    alert('Connexion réussie!');
+                }
+                
+                // Notifier le gestionnaire de leaderboard
+                if (this.leaderboardManager) {
+                    await this.leaderboardManager.onCloudLogin();
+                }
+                
+                // Synchroniser avec localStorage
+                this.neonClient.syncToLocalStorage();
+                
+                closeModal();
+                
+            } catch (error) {
+                console.error('Erreur compte cloud:', error);
+                showError(error.message || 'Erreur de connexion au service cloud');
+                submitBtn.textContent = buttonText;
+                submitBtn.disabled = false;
+            }
+        };
+        
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+        submitBtn.addEventListener('click', handleSubmit);
+        
+        // Fermer en cliquant à l'extérieur
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+        
+        // Submit avec Entrée
+        [emailInput, passwordInput, passwordConfirmInput].forEach(input => {
+            if (input) {
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        handleSubmit();
+                    }
+                });
+            }
+        });
+        
+        // Focus sur le premier champ
+        setTimeout(() => {
+            emailInput.focus();
+        }, 100);
     }
     
     getPlayerProfileForMultiplayer() {
@@ -2505,5 +2955,139 @@ class Game {
             avatar: this.playerProfile.avatar,
             id: this.multiplayerManager ? this.multiplayerManager.myPlayerId : null
         };
+    }
+
+    // ===== GESTION BASE DE DONNÉES NEON =====
+
+    async initializeDatabase() {
+        try {
+            this.neonClient = new NeonClient();
+            console.log('Client Neon initialisé');
+            
+            // Initialiser le gestionnaire de leaderboard
+            this.leaderboardManager = new LeaderboardManager(this.neonClient);
+            console.log('Gestionnaire de leaderboard initialisé');
+            
+            // Vérifier si on a des données cloud à synchroniser
+            await this.checkCloudSync();
+        } catch (error) {
+            console.error('Erreur initialisation base de données:', error);
+            // Le jeu peut continuer sans la base de données
+            // Initialiser le leaderboard manager en mode local seulement
+            this.leaderboardManager = new LeaderboardManager(null);
+        }
+    }
+
+    async checkCloudSync() {
+        if (!this.neonClient) return;
+
+        try {
+            const localProfile = this.loadFromLocalStorage();
+            
+            if (localProfile && localProfile.cloudToken) {
+                // Tenter de se reconnecter avec le token
+                try {
+                    const cloudUser = await this.neonClient.loginWithToken(localProfile.cloudToken);
+                    console.log('Reconnexion cloud réussie:', cloudUser.display_name);
+                    this.playerProfile = {
+                        name: cloudUser.display_name,
+                        avatar: cloudUser.avatar_emoji
+                    };
+                    this.updateProfileDisplay();
+                    
+                    // Notifier le gestionnaire de leaderboard
+                    if (this.leaderboardManager) {
+                        await this.leaderboardManager.onCloudLogin();
+                    }
+                } catch (error) {
+                    console.log('Token cloud expiré, profil local conservé');
+                }
+            }
+        } catch (error) {
+            console.error('Erreur synchronisation cloud:', error);
+        }
+    }
+
+    async saveGameResult(victory, durationSeconds, buildingsCaptured = 0, buildingsLost = 0) {
+        const gameData = {
+            gameMode: this.isMultiplayer ? 'multiplayer' : 'solo',
+            difficulty: this.aiDifficulty,
+            victory: victory,
+            durationSeconds: durationSeconds,
+            buildingsCaptured: buildingsCaptured,
+            buildingsLost: buildingsLost,
+            playersCount: this.isMultiplayer ? this.getTotalPlayers() : this.getAIPlayerCount() + 1
+        };
+
+        // Enregistrer dans le leaderboard manager (local et cloud)
+        if (this.leaderboardManager) {
+            await this.leaderboardManager.recordGameResult(gameData);
+        }
+
+        // Enregistrer dans le cloud si connecté
+        if (this.neonClient && this.neonClient.isLoggedIn()) {
+            try {
+                const result = await this.neonClient.saveGameScore(gameData);
+                console.log('Score cloud sauvegardé:', result);
+                
+                // Afficher le nouveau score
+                this.showScoreSaved(result);
+            } catch (error) {
+                console.error('Erreur sauvegarde score cloud:', error);
+            }
+        } else {
+            console.log('Score sauvegardé localement uniquement');
+        }
+    }
+
+    showScoreSaved(result) {
+        // Afficher brièvement que le score a été sauvegardé
+        const statusDiv = document.createElement('div');
+        statusDiv.textContent = `Score sauvegardé: ${result.final_score}`;
+        statusDiv.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            z-index: 10000;
+            font-size: 14px;
+        `;
+        document.body.appendChild(statusDiv);
+        
+        setTimeout(() => {
+            statusDiv.remove();
+        }, 3000);
+    }
+
+    getTotalPlayers() {
+        if (!this.isMultiplayer) return 1;
+        return this.multiplayerManager ? this.multiplayerManager.connections.size + 1 : 2;
+    }
+
+    getAIPlayerCount() {
+        // Compter les joueurs IA dans la partie
+        const owners = ['player', 'enemy', 'enemy2', 'enemy3'];
+        const usedOwners = new Set();
+        
+        this.buildings.forEach(building => {
+            usedOwners.add(building.owner);
+        });
+        
+        return usedOwners.size - 1; // -1 pour exclure le joueur humain
+    }
+
+    loadFromLocalStorage() {
+        try {
+            const saved = localStorage.getItem('towerRushProfile');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+        } catch (error) {
+            console.error('Erreur lecture localStorage:', error);
+        }
+        return null;
     }
 }
