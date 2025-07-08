@@ -15,6 +15,11 @@ class MultiplayerManager {
         this.connectedPlayers = [];
         this.lobbyMessages = [];
         this.inLobby = false;
+        this.pendingLobbyTimeout = null;
+        
+        // Optimisations performance réseau
+        this.lastGameStateBroadcast = null;
+        this.pendingGameStateBroadcast = null;
         
         this.initializePeer();
         this.setupEventListeners();
@@ -28,35 +33,42 @@ class MultiplayerManager {
             return;
         }
         
-        // Créer un peer avec configuration améliorée
+        // Configuration PeerJS simplifiée
         this.peer = new Peer({
-            debug: 2,
+            debug: 3,
             config: {
                 'iceServers': [
                     { 'urls': 'stun:stun.l.google.com:19302' },
-                    { 'urls': 'stun:stun1.l.google.com:19302' },
-                    { 'urls': 'stun:stun2.l.google.com:19302' }
+                    { 'urls': 'stun:stun1.l.google.com:19302' }
                 ]
             }
         });
         
         this.peer.on('open', (id) => {
-            console.log('Peer initialisé avec ID:', id);
+            console.log('✅ Peer initialisé avec ID:', id);
             this.myPlayerId = id;
-            this.updateConnectionStatus('Prêt à se connecter');
+            this.updateConnectionStatus('✅ Prêt à se connecter');
             
             // Si on est en mode hôte et qu'on attend l'ID
             if (this.isHost && !this.roomCode) {
                 this.roomCode = id;
                 this.displayHostCode();
-                // Afficher le lobby automatiquement pour l'hôte
-                setTimeout(() => this.showLobby(), 1000);
+                // Afficher le lobby immédiatement pour l'hôte
+                this.showLobby();
             }
         });
         
         this.peer.on('connection', (conn) => {
             console.log('Connexion entrante de:', conn.peer);
-            this.handleIncomingConnection(conn);
+            
+            // Handler simplifié pour la connexion
+            conn.on('open', () => {
+                console.log('Connexion ouverte avec:', conn.peer);
+                this.handleIncomingConnection(conn);
+            });
+            
+            // Les événements data, close et error sont gérés dans setupConnectionEvents
+            // pour éviter la duplication
         });
         
         this.peer.on('error', (err) => {
@@ -92,12 +104,11 @@ class MultiplayerManager {
         if (this.peer && this.peer.id) {
             this.roomCode = this.peer.id;
             this.displayHostCode();
+            // Afficher le lobby immédiatement si on a déjà l'ID
+            this.showLobby();
         } else {
-            // Attendre que le peer soit connecté
-            this.peer.on('open', (id) => {
-                this.roomCode = id;
-                this.displayHostCode();
-            });
+            // Attendre que le peer soit connecté (sera géré dans le handler on('open'))
+            console.log('En attente de l\'ID du peer...');
         }
     }
     
@@ -170,72 +181,77 @@ class MultiplayerManager {
         }
         
         this.roomCode = roomCode;
-        // Utiliser l'ID complet tel quel
         const hostId = roomCode.trim();
         
-        this.updateConnectionStatus('Tentative de connexion...');
+        this.updateConnectionStatus('Connexion en cours...');
         console.log('Tentative de connexion au peer:', hostId);
         
-        // Vérifier que l'hôte existe avant de se connecter
-        this.checkPeerExists(hostId, (exists) => {
-            if (!exists) {
-                this.updateConnectionStatus('Partie introuvable - Vérifiez le code');
-                return;
-            }
-            
+        // NOUVEAU: Connexion directe sans vérification préalable
+        try {
             const conn = this.peer.connect(hostId, {
-                metadata: { type: 'player_join' },
-                reliable: true
+                label: 'game',
+                serialization: 'json',
+                reliable: true,
+                metadata: { type: 'player_join' }
             });
             
-            // Timeout de connexion
-            const connectionTimeout = setTimeout(() => {
-                this.updateConnectionStatus('Timeout - Réessayez');
-                conn.close();
-            }, 10000);
+            // Gestion des événements de connexion
+            let connectionEstablished = false;
             
             conn.on('open', () => {
-                clearTimeout(connectionTimeout);
+                console.log('Connexion établie avec l\'hôte!');
+                
                 this.connections.set('host', conn);
                 this.setupConnectionEvents(conn, 'host');
-                this.updateConnectionStatus('Connecté! Accès au lobby...');
+                this.updateConnectionStatus('Connecté! Envoi des informations...');
                 
-                // Envoyer les informations du joueur avec profil
-                const playerProfile = this.game.getPlayerProfileForMultiplayer();
-                this.sendMessage(conn, {
-                    type: 'player_info',
-                    playerId: this.myPlayerId,
-                    playerName: playerProfile.name,
-                    playerAvatar: playerProfile.avatar
-                });
-                
-                // Afficher le lobby
-                setTimeout(() => this.showLobby(), 500);
+                // Envoyer les informations du joueur
+                setTimeout(() => {
+                    const playerProfile = this.game.getPlayerProfileForMultiplayer();
+                    this.sendMessage(conn, {
+                        type: 'player_info',
+                        playerId: this.myPlayerId,
+                        playerName: playerProfile.name,
+                        playerAvatar: playerProfile.avatar
+                    });
+                }, 500);
             });
             
             conn.on('error', (err) => {
                 clearTimeout(connectionTimeout);
                 console.error('Erreur de connexion:', err);
-                this.updateConnectionStatus('Connexion échouée - Réessayez');
+                
+                if (err.type === 'peer-unavailable') {
+                    this.updateConnectionStatus('Code invalide ou hôte hors ligne');
+                } else {
+                    this.updateConnectionStatus('Erreur de connexion - Réessayez');
+                }
             });
-        });
+            
+            conn.on('close', () => {
+                if (connectionEstablished) {
+                    console.log('Connexion fermée par l\'hôte');
+                    this.updateConnectionStatus('Déconnecté de l\'hôte');
+                }
+            });
+            
+        } catch (error) {
+            console.error('Erreur lors de la tentative de connexion:', error);
+            this.updateConnectionStatus('Erreur - Vérifiez le code');
+        }
         
         return true;
     }
     
-    checkPeerExists(peerId, callback) {
-        // Méthode simple : essayer une connexion de test
-        console.log('Vérification de l\'existence du peer:', peerId);
-        
-        // Pour PeerJS, on ne peut pas vraiment vérifier l'existence
-        // On fait confiance et on laisse la connexion échouer si nécessaire
-        callback(true);
-    }
     
     handleIncomingConnection(conn) {
-        if (!this.isHost) return;
+        if (!this.isHost) {
+            console.log('Connexion entrante ignorée - pas hôte');
+            return;
+        }
         
-        console.log('Nouvelle connexion:', conn.peer);
+        console.log('Gestion de la connexion entrante:', conn.peer);
+        console.log('État actuel - isHost:', this.isHost, 'inLobby:', this.inLobby);
         
         // Vérifier la limite de joueurs (4 max = hôte + 3 autres)
         if (this.connections.size >= 3) {
@@ -244,23 +260,24 @@ class MultiplayerManager {
                 type: 'connection_refused',
                 reason: 'Lobby plein (4 joueurs maximum)'
             });
-            conn.close();
+            setTimeout(() => conn.close(), 100);
             return;
         }
         
-        conn.on('open', () => {
-            this.connections.set(conn.peer, conn);
-            this.setupConnectionEvents(conn, conn.peer);
-            
-            this.updatePlayerCount();
-            this.updateConnectionStatus(`${this.connections.size} joueur(s) connecté(s)`);
-            
-            // Si on est en lobby, mettre à jour
-            if (this.inLobby) {
-                this.updatePlayersList();
-                this.addSystemMessage('Un joueur a rejoint le lobby!');
-            }
-        });
+        // La connexion est déjà ouverte quand on arrive ici
+        this.connections.set(conn.peer, conn);
+        this.setupConnectionEvents(conn, conn.peer);
+        
+        console.log('Connexion ajoutée. Total connexions:', this.connections.size);
+        
+        this.updatePlayerCount();
+        this.updateConnectionStatus(`${this.connections.size} joueur(s) connecté(s)`);
+        
+        // Si on est en lobby, mettre à jour
+        if (this.inLobby) {
+            this.updatePlayersList();
+            this.addSystemMessage('Un joueur a rejoint le lobby!');
+        }
     }
     
     setupConnectionEvents(conn, playerId) {
@@ -314,6 +331,10 @@ class MultiplayerManager {
                 this.handleGameAction(data, senderId);
                 break;
                 
+            case 'player_action':
+                this.handlePlayerAction(data, senderId);
+                break;
+                
             case 'game_state':
                 this.handleGameState(data);
                 break;
@@ -334,23 +355,48 @@ class MultiplayerManager {
                 this.handleConnectionRefused(data);
                 break;
                 
+            case 'lobby_access_granted':
+                this.handleLobbyAccessGranted(data);
+                break;
+                
             default:
                 console.log('Type de message inconnu:', data.type);
         }
     }
     
     handlePlayerInfo(data, senderId) {
+        console.log('handlePlayerInfo appelé - isHost:', this.isHost, 'senderId:', senderId);
+        
         if (this.isHost) {
+            // Vérifier si le joueur n'est pas déjà dans la liste
+            const existingPlayer = this.connectedPlayers.find(p => p.id === senderId);
+            if (existingPlayer) {
+                console.log('Joueur déjà dans la liste:', senderId);
+                return;
+            }
+            
             this.connectedPlayers.push({
                 id: senderId,
-                name: data.playerName,
+                name: data.playerName || 'Joueur',
                 avatar: data.playerAvatar || '👤',
                 playerId: data.playerId
             });
             
-            console.log('Joueur ajouté:', data.playerName);
+            console.log('Joueur ajouté:', data.playerName, '- Total joueurs:', this.connectedPlayers.length);
             
-            // Diffuser la liste mise à jour
+            // Envoyer une confirmation au joueur qui vient de se connecter
+            const conn = this.connections.get(senderId);
+            if (conn && conn.open) {
+                console.log('Envoi de lobby_access_granted à', senderId);
+                this.sendMessage(conn, {
+                    type: 'lobby_access_granted',
+                    players: this.connectedPlayers
+                });
+            } else {
+                console.error('Connexion non trouvée ou fermée pour', senderId);
+            }
+            
+            // Diffuser la liste mise à jour à tous les autres
             this.broadcastToLobby({
                 type: 'player_list_update',
                 players: this.connectedPlayers
@@ -358,11 +404,14 @@ class MultiplayerManager {
             
             // Afficher le lobby si pas encore fait
             if (!this.inLobby) {
+                console.log('Affichage du lobby pour l\'hôte');
                 this.showLobby();
             } else {
                 this.updatePlayersList();
                 this.addSystemMessage(`${data.playerName} a rejoint le lobby!`);
             }
+        } else {
+            console.log('handlePlayerInfo ignoré - pas hôte');
         }
     }
     
@@ -371,13 +420,13 @@ class MultiplayerManager {
             // Recevoir l'état initial du jeu
             console.log('Réception du démarrage de jeu - Index:', data.myPlayerIndex, 'Total:', data.totalPlayers);
             
-            // IMPORTANT: Afficher l'interface de jeu pour les joueurs distants
+            // NOUVEAU: Stocker les données pour après l'initialisation
+            this.pendingGameData = data;
+            
+            // Afficher l'interface de jeu
             this.launchGameFromLobby();
             
-            // Puis initialiser le jeu avec les données reçues
-            setTimeout(() => {
-                this.game.initializeMultiplayerGame(data.gameState, data.myPlayerIndex, data.totalPlayers);
-            }, 100);
+            // L'initialisation du jeu se fera dans launchGameFromLobby une fois le canvas prêt
         }
     }
     
@@ -386,6 +435,55 @@ class MultiplayerManager {
             // L'hôte traite l'action et diffuse le nouvel état
             this.game.processMultiplayerAction(data.action, senderId);
             this.broadcastGameState();
+        }
+    }
+    
+    handlePlayerAction(data, senderId) {
+        // NOUVEAU: Système d'actions simplifié et robuste
+        const action = data.action;
+        
+        if (this.isHost) {
+            // L'hôte redistribue l'action à tous les autres joueurs
+            console.log(`Hôte: Redistribution de l'action ${action.type} de ${data.fromPlayer}`);
+            
+            this.connections.forEach((conn) => {
+                // Envoyer à tous sauf l'expéditeur original
+                if (conn.peer !== senderId) {
+                    this.sendMessage(conn, {
+                        type: 'player_action',
+                        action: action,
+                        fromPlayer: data.fromPlayer
+                    });
+                }
+            });
+        }
+        
+        // Appliquer l'action seulement si elle vient d'un autre joueur
+        const isMyAction = (this.isHost && data.fromPlayer === 'host') || 
+                          (!this.isHost && data.fromPlayer === this.myPlayerId);
+        
+        if (!isMyAction) {
+            console.log(`Application de l'action ${action.type} de ${data.fromPlayer}`);
+            this.applyPlayerAction(action);
+        }
+    }
+    
+    applyPlayerAction(action) {
+        // NOUVEAU: Application robuste des actions avec vérifications
+        try {
+            if (action.type === 'send_units') {
+                const sourceBuilding = this.game.buildings[action.sourceId];
+                const targetBuilding = this.game.buildings[action.targetId];
+                
+                if (sourceBuilding && targetBuilding) {
+                    console.log(`Action appliquée: ${sourceBuilding.owner} envoie ${action.percentage}% de ${sourceBuilding.units} unités`);
+                    sourceBuilding.sendUnits(targetBuilding, action.percentage, this.game);
+                } else {
+                    console.error(`Bâtiments invalides: source=${action.sourceId}, target=${action.targetId}`);
+                }
+            }
+        } catch (error) {
+            console.error('Erreur lors de l\'application de l\'action:', error);
         }
     }
     
@@ -428,17 +526,24 @@ class MultiplayerManager {
     }
     
     sendAction(action) {
+        // NOUVEAU: Système simple - tout le monde diffuse ses actions
         if (this.isHost) {
-            // L'hôte traite directement ses actions
-            this.game.processMultiplayerAction(action, 'host');
-            this.broadcastGameState();
+            // L'hôte diffuse l'action à tous les clients
+            this.connections.forEach((conn) => {
+                this.sendMessage(conn, {
+                    type: 'player_action',
+                    action: action,
+                    fromPlayer: 'host'
+                });
+            });
         } else {
-            // Envoyer l'action à l'hôte
+            // Le client envoie l'action à l'hôte qui la redistribue
             const hostConn = this.connections.get('host');
             if (hostConn) {
                 this.sendMessage(hostConn, {
-                    type: 'game_action',
-                    action: action
+                    type: 'player_action',
+                    action: action,
+                    fromPlayer: this.myPlayerId
                 });
             }
         }
@@ -458,9 +563,34 @@ class MultiplayerManager {
     
     sendMessage(conn, message) {
         try {
-            conn.send(message);
+            if (!conn) {
+                console.error('Connexion null');
+                return;
+            }
+            
+            // Vérifier plusieurs façons d'envoyer le message
+            if (conn.send && typeof conn.send === 'function') {
+                console.log('Envoi message:', message.type, 'à', conn.peer, '- open:', conn.open);
+                conn.send(message);
+            } else if (conn.dataChannel && conn.dataChannel.send && conn.dataChannel.readyState === 'open') {
+                console.log('Envoi via dataChannel:', message.type);
+                conn.dataChannel.send(JSON.stringify(message));
+            } else {
+                console.error('Impossible d\'envoyer - conn.open:', conn.open, 'dataChannel:', conn.dataChannel?.readyState);
+                
+                // Essayer de forcer l'envoi après un délai
+                if (!conn._sendRetryTimeout) {
+                    conn._sendRetryTimeout = setTimeout(() => {
+                        delete conn._sendRetryTimeout;
+                        console.log('Retry envoi message');
+                        this.sendMessage(conn, message);
+                    }, 500);
+                }
+            }
         } catch (err) {
             console.error('Erreur envoi message:', err);
+            console.error('État de la connexion:', conn?.open ? 'ouverte' : 'fermée');
+            console.error('Connexion:', conn);
         }
     }
     
@@ -514,6 +644,23 @@ class MultiplayerManager {
                 this.leaveLobby();
             }
         }, 3000);
+    }
+    
+    handleLobbyAccessGranted(data) {
+        // L'hôte nous autorise l'accès au lobby
+        console.log('Accès au lobby accordé!');
+        
+        // Annuler le timeout si on reçoit la confirmation
+        if (this.pendingLobbyTimeout) {
+            clearTimeout(this.pendingLobbyTimeout);
+            this.pendingLobbyTimeout = null;
+        }
+        
+        this.connectedPlayers = data.players || [];
+        this.updateConnectionStatus('Connecté au lobby!');
+        
+        // Afficher le lobby maintenant
+        this.showLobby();
     }
     
     // === GESTION DU LOBBY ===
@@ -652,9 +799,14 @@ class MultiplayerManager {
         
         if (!message) return;
         
+        // Récupérer le profil du joueur pour avoir son nom
+        const playerProfile = this.game.getPlayerProfileForMultiplayer();
+        const playerName = playerProfile.name || (this.isHost ? 'Hôte' : 'Joueur');
+        
         const chatData = {
             type: 'chat_message',
-            sender: this.isHost ? 'Hôte' : 'Joueur',
+            sender: playerName,
+            senderId: this.myPlayerId, // Ajouter l'ID pour éviter les doublons
             message: message,
             timestamp: Date.now()
         };
@@ -670,7 +822,10 @@ class MultiplayerManager {
     }
     
     handleChatMessage(data) {
-        this.displayChatMessage(data);
+        // Éviter d'afficher nos propres messages deux fois
+        if (data.senderId !== this.myPlayerId) {
+            this.displayChatMessage(data);
+        }
     }
     
     displayChatMessage(data) {
@@ -789,19 +944,9 @@ class MultiplayerManager {
     }
     
     broadcastGameState() {
-        if (!this.isHost) return;
-        
-        const gameState = this.game.getGameState();
-        const message = {
-            type: 'game_state',
-            gameState: gameState
-        };
-        
-        this.connections.forEach((conn) => {
-            if (conn.open) {
-                this.sendMessage(conn, message);
-            }
-        });
+        // NOUVEAU: Plus de synchronisation d'état constant
+        // Cette méthode n'est plus utilisée activement
+        console.log('broadcastGameState appelé mais ignoré - utilisation des actions uniquement');
     }
     
     startGameFromLobby() {
@@ -839,7 +984,58 @@ class MultiplayerManager {
         
         // Masquer le lobby et afficher le jeu (pour tous les joueurs)
         document.getElementById('lobbyScreen').style.display = 'none';
-        document.getElementById('gameContainer').style.display = 'flex';
+        
+        // Vérifier que le gameContainer existe
+        const gameContainer = document.getElementById('gameContainer');
+        if (gameContainer) {
+            gameContainer.style.display = 'flex';
+            console.log('gameContainer affiché pour le joueur');
+        } else {
+            console.error('gameContainer introuvable! Vérifiez que vous êtes sur game.html');
+        }
+        
+        // Vérifier que le canvas existe et initialiser si nécessaire
+        const gameCanvas = document.getElementById('gameCanvas');
+        if (gameCanvas) {
+            console.log('gameCanvas trouvé');
+            
+            // Diagnostic CSS du canvas
+            const canvasStyle = window.getComputedStyle(gameCanvas);
+            console.log('Canvas display:', canvasStyle.display);
+            console.log('Canvas visibility:', canvasStyle.visibility);
+            console.log('Canvas dimensions:', canvasStyle.width, 'x', canvasStyle.height);
+            console.log('Canvas position:', canvasStyle.position);
+            
+            // Forcer l'affichage du canvas
+            gameCanvas.style.display = 'block';
+            gameCanvas.style.visibility = 'visible';
+            
+            // Initialiser le canvas pour les joueurs distants
+            if (this.game && this.game.initializeCanvas) {
+                this.game.initializeCanvas();
+            }
+            
+            // Forcer un redimensionnement pour déclencher l'affichage
+            setTimeout(() => {
+                if (this.game && this.game.setupCanvas) {
+                    this.game.setupCanvas();
+                }
+                // Déclencher un événement resize pour forcer le redimensionnement
+                window.dispatchEvent(new Event('resize'));
+                
+                // Forcer le démarrage du jeu si le canvas est maintenant disponible
+                if (this.game && this.game.canvas && this.game.ctx && !this.game.gameStarted) {
+                    console.log('Forcer le démarrage du jeu pour le joueur distant');
+                    this.game.gameStarted = true;
+                    if (!this.game.gameLoopStarted) {
+                        this.game.gameLoopStarted = true;
+                        this.game.gameLoop();
+                    }
+                }
+            }, 100);
+        } else {
+            console.error('gameCanvas introuvable! Le canvas ne peut pas être affiché');
+        }
         
         // Démarrer la musique (pour tous les joueurs)
         setTimeout(() => {
@@ -848,35 +1044,70 @@ class MultiplayerManager {
             }
         }, 500);
         
-        // Démarrer le jeu multijoueur (seulement pour l'hôte)
+        // NOUVEAU: Initialisation simplifiée
         if (this.isHost) {
             // L'hôte crée le jeu basé sur les joueurs du lobby
             const realPlayerCount = this.connections.size + 1; // +1 pour l'hôte
             console.log(`Démarrage avec ${realPlayerCount} joueurs réels`);
             
-            this.game.initializeMultiplayerGame(null, 0, realPlayerCount);
+            // Attendre que le canvas soit vraiment prêt
+            const initializeHostGame = () => {
+                if (this.game && this.game.canvas && this.game.ctx) {
+                    this.game.initializeMultiplayerGame(null, 0, realPlayerCount);
+                    
+                    // Envoyer l'état initial après un délai pour garantir l'initialisation
+                    setTimeout(() => {
+                        const gameState = this.game.getGameState();
+                        let playerIndex = 1;
+                        
+                        this.connections.forEach((conn, playerId) => {
+                            this.sendMessage(conn, {
+                                type: 'game_start',
+                                gameState: gameState,
+                                myPlayerIndex: playerIndex,
+                                totalPlayers: realPlayerCount
+                            });
+                            playerIndex++;
+                        });
+                        
+                        console.log(`État initial envoyé à ${this.connections.size} clients`);
+                    }, 500); // Délai plus long pour garantir l'initialisation
+                } else {
+                    // Réessayer après un court délai
+                    setTimeout(initializeHostGame, 100);
+                }
+            };
             
-            // Envoyer l'état initial à tous les clients
-            setTimeout(() => {
-                const gameState = this.game.getGameState();
-                let playerIndex = 1;
-                
-                this.connections.forEach((conn, playerId) => {
-                    this.sendMessage(conn, {
-                        type: 'game_start',
-                        gameState: gameState,
-                        myPlayerIndex: playerIndex,
-                        totalPlayers: realPlayerCount
-                    });
-                    playerIndex++;
-                });
-                
-                console.log(`État initial envoyé à ${this.connections.size} clients`);
-            }, 100);
-            
+            // Démarrer l'initialisation
+            setTimeout(initializeHostGame, 200);
             this.addSystemMessage('La partie commence!');
+            
         } else {
-            console.log('Client: Interface de jeu affichée, en attente des données de l\'hôte');
+            // Client: Initialiser avec les données en attente si disponibles
+            console.log('Client: Interface de jeu affichée');
+            
+            if (this.pendingGameData) {
+                // Attendre que le canvas soit prêt
+                const initializeClientGame = () => {
+                    if (this.game && this.game.canvas && this.game.ctx) {
+                        const data = this.pendingGameData;
+                        this.pendingGameData = null;
+                        
+                        console.log('Client: Initialisation avec les données reçues');
+                        this.game.initializeMultiplayerGame(
+                            data.gameState, 
+                            data.myPlayerIndex, 
+                            data.totalPlayers
+                        );
+                    } else {
+                        // Réessayer
+                        setTimeout(initializeClientGame, 100);
+                    }
+                };
+                
+                // Démarrer après un délai pour laisser le canvas s'initialiser
+                setTimeout(initializeClientGame, 300);
+            }
         }
     }
 }
