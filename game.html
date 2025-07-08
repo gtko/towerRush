@@ -9,95 +9,111 @@
     <meta name="theme-color" content="#FFD700">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <script src="https://unpkg.com/peerjs@1.5.0/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
     <div class="menu-screen" id="menuScreen">
-        <!-- Logo en overlay -->
-        <div class="logo-overlay">
-            <img src="assets/logo.png" alt="Tower Rush" class="logo-overlay-img">
-        </div>
-        
-        <!-- Section Profil -->
-        <div class="profile-section">
-            <div class="profile-card" id="profileCard">
-                <div class="profile-avatar" id="profileAvatar">👤</div>
-                <div class="profile-info">
-                    <div class="profile-name" id="profileName">Joueur</div>
-                    <div class="profile-stats" id="profileStats" style="display: none;">
-                        <span class="stat-mini">🎮 <span id="statGames">0</span></span>
-                        <span class="stat-mini">🏆 <span id="statWins">0</span></span>
-                        <span class="stat-mini">⭐ <span id="statBestScore">0</span></span>
-                    </div>
-                    <button class="profile-edit-btn" id="profileEditBtn">Modifier</button>
+        <!-- Header avec navigation -->
+        <div class="menu-header">
+            <div class="menu-header-content">
+                <div class="header-left">
+                    <button class="nav-btn" id="showLeaderboardBtn">
+                        <span class="nav-icon">🏆</span>
+                        <span class="nav-label">Classement</span>
+                    </button>
                 </div>
-                <div class="profile-cloud-status" id="profileCloudStatus">
-                    <span class="cloud-icon">☁️</span>
-                    <span class="cloud-text">Local</span>
+                <div class="header-center">
+                    <img src="assets/logo.png" alt="Tower Rush" class="header-logo">
+                </div>
+                <div class="header-right">
+                    <div class="user-badge" id="userBadge">
+                        <div class="user-avatar" id="profileAvatar">👤</div>
+                        <div class="user-info">
+                            <span class="user-name" id="profileName">Joueur</span>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span class="user-rank" id="profileRank">Rang #--</span>
+                                <span class="user-elo" id="profileElo">ELO: 0</span>
+                            </div>
+                            <span class="user-status" id="profileCloudStatus">Local</span>
+                        </div>
+                        <button class="user-menu-btn" id="profileEditBtn">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                                <circle cx="8" cy="2" r="1.5"/>
+                                <circle cx="8" cy="8" r="1.5"/>
+                                <circle cx="8" cy="14" r="1.5"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
         
         <div class="menu-content">
-            <!-- Section Leaderboard -->
-            <div class="menu-section">
-                <h2 class="section-title">🏆 Leaderboard</h2>
-                <div class="leaderboard-preview" id="leaderboardPreview">
-                    <div class="loading-leaderboard">Chargement...</div>
-                </div>
-                <button id="showFullLeaderboardBtn" class="btn btn-outline btn-compact">Voir classement complet</button>
-            </div>
-            
-            <div class="menu-divider"></div>
-            
-            <!-- Section Solo -->
-            <div class="menu-section">
-                <h2 class="section-title">Solo</h2>
-                <div class="solo-options">
-                    <div class="inline-settings">
-                        <div class="inline-group">
-                            <label>Adversaires:</label>
-                            <div class="button-group compact">
-                                <button class="option-btn active" data-players="2">1</button>
-                                <button class="option-btn" data-players="3">2</button>
-                                <button class="option-btn" data-players="4">3</button>
-                            </div>
+            <div class="menu-main-container">
+                <div class="game-modes-grid">
+                    <!-- Carte Solo -->
+                    <div class="game-mode-card solo-card">
+                        <div class="card-header">
+                            <span class="card-icon">⚔️</span>
+                            <h2 class="card-title">Solo</h2>
                         </div>
-                        <div class="inline-group">
-                            <label>Difficulté:</label>
-                            <div class="button-group compact">
-                                <button class="option-btn" data-difficulty="easy">Facile</button>
-                                <button class="option-btn active" data-difficulty="medium">Moyen</button>
-                                <button class="option-btn" data-difficulty="hard">Difficile</button>
+                        
+                        <p class="card-description">Affrontez l'intelligence artificielle dans des batailles épiques</p>
+                        
+                        <div class="card-content">
+                            <div class="settings-group">
+                                <div class="setting-row">
+                                    <label class="setting-label">Adversaires</label>
+                                    <div class="button-group compact">
+                                        <button class="option-btn active" data-players="2">1</button>
+                                        <button class="option-btn" data-players="3">2</button>
+                                        <button class="option-btn" data-players="4">3</button>
+                                    </div>
+                                </div>
+                                <div class="setting-row">
+                                    <label class="setting-label">Difficulté</label>
+                                    <div class="button-group compact">
+                                        <button class="option-btn" data-difficulty="easy">Facile</button>
+                                        <button class="option-btn active" data-difficulty="medium">Moyen</button>
+                                        <button class="option-btn" data-difficulty="hard">Difficile</button>
+                                    </div>
+                                </div>
                             </div>
+                            
+                            <button id="quickPlayBtn" class="btn btn-primary btn-full">
+                                <span>Lancer la partie</span>
+                            </button>
                         </div>
                     </div>
-                    <button id="quickPlayBtn" class="btn btn-primary btn-action">
-                        <span class="btn-icon">⚔️</span>
-                        <span>Jouer Solo</span>
-                    </button>
-                </div>
-            </div>
-            
-            <div class="menu-divider"></div>
-            
-            <!-- Section Multijoueur -->
-            <div class="menu-section">
-                <h2 class="section-title">Multijoueur</h2>
-                <div class="multiplayer-buttons">
-                    <button id="hostGameBtn" class="btn btn-secondary btn-action">
-                        <span class="btn-icon">🏰</span>
-                        <span>Créer une partie</span>
-                    </button>
-                    <div class="join-section">
-                        <input type="text" id="roomCode" placeholder="Code de la salle" class="room-code-input">
-                        <button id="joinBtn" class="btn btn-secondary btn-compact">
-                            <span class="btn-icon">🚪</span>
-                            <span>Rejoindre</span>
-                        </button>
+                    
+                    <!-- Carte Multijoueur -->
+                    <div class="game-mode-card multiplayer-card">
+                        <div class="card-header">
+                            <span class="card-icon">🌐</span>
+                            <h2 class="card-title">Multijoueur</h2>
+                        </div>
+                        
+                        <p class="card-description">Défiez vos amis dans des parties en temps réel</p>
+                        
+                        <div class="card-content">
+                            <button id="hostGameBtn" class="btn btn-secondary btn-full">
+                                <span class="btn-icon">🏰</span>
+                                <span>Créer une partie</span>
+                            </button>
+                            
+                            <div class="divider-text">ou</div>
+                            
+                            <div class="join-group">
+                                <input type="text" id="roomCode" placeholder="Code de la salle" class="room-input">
+                                <button id="joinBtn" class="btn btn-outline">
+                                    <span>Rejoindre</span>
+                                </button>
+                            </div>
+                            
+                            <div id="connectionStatus" class="connection-status"></div>
+                        </div>
                     </div>
                 </div>
-                <div id="connectionStatus" class="status-text"></div>
             </div>
         </div>
     </div>
@@ -187,6 +203,14 @@
         <div class="game-canvas-wrapper">
             <div class="game-canvas-container">
                 <canvas id="gameCanvas"></canvas>
+                <!-- Debug multijoueur -->
+                <div id="multiplayerDebug" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; font-size: 12px; display: none; border-radius: 5px;">
+                    <div>Mode: <span id="debugMode">-</span></div>
+                    <div>Joueur: <span id="debugPlayer">-</span></div>
+                    <div>État: <span id="debugState">-</span></div>
+                    <div>Canvas: <span id="debugCanvas">-</span></div>
+                    <div>FPS: <span id="debugFPS">-</span></div>
+                </div>
             </div>
         </div>
         
@@ -270,6 +294,102 @@
             <div class="profile-modal-footer">
                 <button class="btn btn-secondary" id="profileCancelBtn">Annuler</button>
                 <button class="btn btn-primary" id="profileSaveBtn">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Écran Leaderboard -->
+    <div class="leaderboard-screen" id="leaderboardScreen" style="display: none;">
+        <div class="leaderboard-header">
+            <button id="backFromLeaderboardBtn" class="btn btn-secondary back-btn">← Retour</button>
+            <h1 class="leaderboard-title">🏆 Leaderboard</h1>
+            <div class="leaderboard-profile-info">
+                <div class="profile-mini" id="leaderboardProfileMini">
+                    <div class="profile-avatar-mini" id="leaderboardProfileAvatar">👤</div>
+                    <div class="profile-name-mini" id="leaderboardProfileName">Joueur</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="leaderboard-content">
+            <div class="leaderboard-filters">
+                <div class="filter-group">
+                    <label>Mode:</label>
+                    <div class="button-group">
+                        <button class="filter-btn active" data-mode="all">Tous</button>
+                        <button class="filter-btn" data-mode="solo">Solo</button>
+                        <button class="filter-btn" data-mode="multiplayer">Multijoueur</button>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Période:</label>
+                    <div class="button-group">
+                        <button class="filter-btn active" data-period="all">Tout</button>
+                        <button class="filter-btn" data-period="week">Semaine</button>
+                        <button class="filter-btn" data-period="month">Mois</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="leaderboard-table-container">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Rang</th>
+                            <th>Joueur</th>
+                            <th>Score</th>
+                            <th>Parties</th>
+                            <th>Victoires</th>
+                            <th>Ratio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardTableBody">
+                        <tr>
+                            <td colspan="6" class="loading-row">
+                                <div class="loading-spinner"></div>
+                                Chargement du classement...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="leaderboard-pagination" id="leaderboardPagination" style="display: none;">
+                <button id="prevPageBtn" class="btn btn-secondary btn-sm">← Précédent</button>
+                <span id="pageInfo">Page 1 sur 1</span>
+                <button id="nextPageBtn" class="btn btn-secondary btn-sm">Suivant →</button>
+            </div>
+        </div>
+        
+        <div class="leaderboard-footer">
+            <div class="player-stats-card" id="playerStatsCard">
+                <h3>Vos Statistiques</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Rang Global</span>
+                        <span class="stat-value" id="playerGlobalRank">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Meilleur Score</span>
+                        <span class="stat-value" id="playerBestScore">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Parties Jouées</span>
+                        <span class="stat-value" id="playerTotalGames">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Victoires</span>
+                        <span class="stat-value" id="playerTotalWins">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Ratio V/D</span>
+                        <span class="stat-value" id="playerWinRate">0%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Dernière Partie</span>
+                        <span class="stat-value" id="playerLastGame">Jamais</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

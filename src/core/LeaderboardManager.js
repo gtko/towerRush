@@ -610,6 +610,195 @@ class LeaderboardManager {
         // Appelé quand l'utilisateur se déconnecte du cloud
         this.showOfflineMode();
     }
+    
+    showLeaderboardScreen() {
+        // Masquer le menu principal
+        document.getElementById('menuScreen').style.display = 'none';
+        
+        // Afficher l'écran du leaderboard
+        const leaderboardScreen = document.getElementById('leaderboardScreen');
+        leaderboardScreen.style.display = 'flex';
+        
+        // Mettre à jour le profil mini
+        this.updateLeaderboardProfile();
+        
+        // Charger les données du leaderboard complet
+        this.loadFullLeaderboard();
+        
+        // Charger les stats du joueur
+        this.loadPlayerStats();
+        
+        // Configurer les filtres
+        this.setupLeaderboardFilters();
+    }
+    
+    hideLeaderboardScreen() {
+        // Masquer l'écran du leaderboard
+        document.getElementById('leaderboardScreen').style.display = 'none';
+        
+        // Afficher le menu principal
+        document.getElementById('menuScreen').style.display = 'flex';
+    }
+    
+    updateLeaderboardProfile() {
+        // Mettre à jour les infos du profil dans le header du leaderboard
+        const avatarEl = document.getElementById('leaderboardProfileAvatar');
+        const nameEl = document.getElementById('leaderboardProfileName');
+        
+        if (avatarEl && nameEl) {
+            const profile = this.getLocalProfile();
+            avatarEl.textContent = profile.avatar;
+            nameEl.textContent = profile.name;
+        }
+    }
+    
+    async loadFullLeaderboard() {
+        const tableBody = document.getElementById('leaderboardTableBody');
+        if (!tableBody) return;
+        
+        // Afficher le loading
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="loading-row">
+                    <div class="loading-spinner"></div>
+                    Chargement du classement...
+                </td>
+            </tr>
+        `;
+        
+        try {
+            let leaderboard = [];
+            
+            // Essayer de charger depuis le cloud
+            if (this.neonClient && this.neonClient.isInitialized) {
+                leaderboard = await this.neonClient.getLeaderboard('all', 50);
+            }
+            
+            // Fallback vers données locales
+            if (!leaderboard || leaderboard.length === 0) {
+                leaderboard = this.generateLocalLeaderboard(20);
+            }
+            
+            this.displayFullLeaderboard(leaderboard);
+            
+        } catch (error) {
+            console.error('Erreur chargement leaderboard complet:', error);
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="loading-row">
+                        Erreur de chargement du classement
+                    </td>
+                </tr>
+            `;
+        }
+    }
+    
+    displayFullLeaderboard(leaderboard) {
+        const tableBody = document.getElementById('leaderboardTableBody');
+        if (!tableBody) return;
+        
+        if (!leaderboard || leaderboard.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="loading-row">
+                        Aucune donnée disponible
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+        
+        const currentPlayerName = this.getLocalProfile().name;
+        
+        tableBody.innerHTML = leaderboard.map((player, index) => {
+            const rank = index + 1;
+            const isCurrentPlayer = player.name === currentPlayerName;
+            const winRate = player.gamesPlayed > 0 ? Math.round((player.wins / player.gamesPlayed) * 100) : 0;
+            
+            return `
+                <tr ${isCurrentPlayer ? 'class="player-row"' : ''}>
+                    <td class="rank-cell ${rank <= 3 ? `rank-${rank}` : ''}">${rank}</td>
+                    <td class="player-cell">
+                        <div class="player-avatar">${player.avatar || '👤'}</div>
+                        ${player.name}
+                    </td>
+                    <td class="score-cell">${player.bestScore}</td>
+                    <td>${player.gamesPlayed}</td>
+                    <td>${player.wins}</td>
+                    <td class="ratio-cell">${winRate}%</td>
+                </tr>
+            `;
+        }).join('');
+    }
+    
+    async loadPlayerStats() {
+        try {
+            let stats = {};
+            
+            // Essayer de charger depuis le cloud
+            if (this.neonClient && this.neonClient.isLoggedIn()) {
+                stats = await this.neonClient.getPlayerStats();
+            }
+            
+            // Fallback vers stats locales
+            if (!stats || Object.keys(stats).length === 0) {
+                stats = this.getLocalStats();
+            }
+            
+            this.displayPlayerStatsInFooter(stats);
+            
+        } catch (error) {
+            console.error('Erreur chargement stats player:', error);
+        }
+    }
+    
+    displayPlayerStatsInFooter(stats) {
+        const elements = {
+            playerGlobalRank: document.getElementById('playerGlobalRank'),
+            playerBestScore: document.getElementById('playerBestScore'),
+            playerTotalGames: document.getElementById('playerTotalGames'),
+            playerTotalWins: document.getElementById('playerTotalWins'),
+            playerWinRate: document.getElementById('playerWinRate'),
+            playerLastGame: document.getElementById('playerLastGame')
+        };
+        
+        if (elements.playerGlobalRank) elements.playerGlobalRank.textContent = stats.globalRank || '-';
+        if (elements.playerBestScore) elements.playerBestScore.textContent = stats.bestScore || 0;
+        if (elements.playerTotalGames) elements.playerTotalGames.textContent = stats.gamesPlayed || 0;
+        if (elements.playerTotalWins) elements.playerTotalWins.textContent = stats.wins || 0;
+        
+        const winRate = stats.gamesPlayed > 0 ? Math.round((stats.wins / stats.gamesPlayed) * 100) : 0;
+        if (elements.playerWinRate) elements.playerWinRate.textContent = `${winRate}%`;
+        
+        const lastGame = stats.lastGame ? new Date(stats.lastGame).toLocaleDateString() : 'Jamais';
+        if (elements.playerLastGame) elements.playerLastGame.textContent = lastGame;
+    }
+    
+    setupLeaderboardFilters() {
+        // Gestion des filtres de mode
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-mode]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.filterLeaderboard();
+            });
+        });
+        
+        // Gestion des filtres de période
+        document.querySelectorAll('[data-period]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-period]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.filterLeaderboard();
+            });
+        });
+    }
+    
+    filterLeaderboard() {
+        // Pour l'instant, on recharge simplement le leaderboard
+        // Dans une version plus avancée, on pourrait filtrer côté client
+        this.loadFullLeaderboard();
+    }
 }
 
 // Rendre la classe disponible globalement

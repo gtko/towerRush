@@ -17,7 +17,9 @@
       "Bash(npx acorn:*)",
       "Bash(ls:*)",
       "Bash(mv:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(find:*)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }

@@ -46,6 +46,13 @@ class Game {
         this.localPlayerIndex = 0; // Index du joueur local (0 = joueur 1, 1 = joueur 2, etc.)
         this.networkGameState = null;
         
+        // Optimisations performance multijoueur
+        this.lastBroadcast = null;
+        this.lastBackgroundSync = null;
+        this.lastNetworkUpdate = null;
+        this.pendingBroadcast = null;
+        this.pendingNetworkUpdate = null;
+        
         // Timer pour le mode arrière-plan
         this.backgroundTimer = null;
         this.backgroundInterval = null;
@@ -66,6 +73,7 @@ class Game {
         this.setupAudioControls();
         this.setupVisibilityHandlers();
         this.setupProfileSystem();
+        this.setupLeaderboardListeners();
         
         // Initialiser le multijoueur après un délai pour s'assurer que tout est chargé
         setTimeout(() => {
@@ -517,21 +525,32 @@ class Game {
     }
 
     initializeCanvas() {
-        if (this.canvas) {
+        // NOUVEAU: Initialisation robuste du canvas pour le multijoueur
+        if (this.canvas && this.ctx) {
             console.log('Canvas déjà initialisé');
             return true;
         }
         
         this.canvas = document.getElementById('gameCanvas');
         if (!this.canvas) {
-            console.error('Canvas toujours introuvable lors de l\'initialisation');
+            console.error('Canvas introuvable dans le DOM!');
             return false;
         }
         
         this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) {
+            console.error('Impossible d\'obtenir le contexte 2D!');
+            return false;
+        }
+        
+        // Configuration complète
         this.setupCanvas();
         this.loadBackground();
         this.setupEventListeners();
+        
+        // Vérifier les dimensions
+        const rect = this.canvas.getBoundingClientRect();
+        console.log(`Canvas initialisé: ${this.canvas.width}x${this.canvas.height}, visible: ${rect.width}x${rect.height}`);
         
         // Forcer un redimensionnement pour s'assurer que le canvas est visible
         setTimeout(() => {
@@ -756,19 +775,21 @@ class Game {
             sendBtn.addEventListener('click', () => {
                 if (this.selectedBuildings.length > 0 && this.targetBuilding) {
                     this.selectedBuildings.forEach(building => {
+                        // NOUVEAU: Toujours exécuter localement + envoyer au réseau
+                        building.sendUnits(this.targetBuilding, this.sendPercentage, this);
+                        
                         // Envoyer l'action au réseau si multijoueur
-                        if (this.isMultiplayer) {
+                        if (this.isMultiplayer && this.multiplayerManager) {
                             const sourceId = this.buildings.indexOf(building);
                             const targetId = this.buildings.indexOf(this.targetBuilding);
-                            this.sendMultiplayerAction({
+                            this.multiplayerManager.sendAction({
                                 type: 'send_units',
                                 sourceId: sourceId,
-                            targetId: targetId,
-                            percentage: this.sendPercentage
-                        });
-                    } else {
-                        building.sendUnits(this.targetBuilding, this.sendPercentage, this);
-                    }
+                                targetId: targetId,
+                                percentage: this.sendPercentage,
+                                playerId: this.localPlayerIndex
+                            });
+                        }
                 });
                 
                     // Réinitialiser les sélections après envoi
@@ -987,8 +1008,11 @@ class Game {
         // Envoyer les unités depuis chaque bâtiment sélectionné
         this.selectedBuildings.forEach(building => {
             if (building.units > 0) {
+                // NOUVEAU: Toujours exécuter localement + diffuser si multijoueur
+                building.sendUnits(this.targetBuilding, this.sendPercentage, this);
+                
                 if (this.isMultiplayer && this.multiplayerManager) {
-                    // Mode multijoueur: envoyer l'action via le réseau
+                    // Diffuser l'action aux autres joueurs
                     const sourceId = this.buildings.indexOf(building);
                     const targetId = this.buildings.indexOf(this.targetBuilding);
                     
@@ -996,13 +1020,9 @@ class Game {
                         type: 'send_units',
                         sourceId: sourceId,
                         targetId: targetId,
-                        percentage: this.sendPercentage
+                        percentage: this.sendPercentage,
+                        playerId: this.localPlayerIndex
                     });
-                    
-                    console.log(`Action réseau envoyée: bâtiment ${sourceId} -> ${targetId} (${this.sendPercentage}%)`);
-                } else {
-                    // Mode solo: traitement direct
-                    building.sendUnits(this.targetBuilding, this.sendPercentage, this);
                 }
             }
         });
@@ -1066,16 +1086,7 @@ class Game {
         const newGroup = new UnitGroup(source, target, units, source.owner);
         this.unitGroups.push(newGroup);
         
-        // En multijoueur, diffuser le nouvel état avec throttling
-        if (this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost) {
-            // Délayer et grouper les mises à jour au lieu d'envoyer immédiatement
-            if (!this.pendingBroadcast) {
-                this.pendingBroadcast = setTimeout(() => {
-                    this.multiplayerManager.broadcastGameState();
-                    this.pendingBroadcast = null;
-                }, 100); // Grouper les changements sur 100ms
-            }
-        }
+        // NOUVEAU: Plus de broadcast automatique - les actions sont gérées individuellement
     }
 
     update() {
@@ -1120,30 +1131,13 @@ class Game {
         this.updateUI();
         
         // IA simple (désactivée en multijoueur)
-        this.updateAI();
-        
-        // Synchronisation multijoueur pour l'hôte (optimisée pour les performances)
-        if (this.isMultiplayer && this.multiplayerManager && this.multiplayerManager.isHost) {
-            const currentState = this.getGameStateChecksum();
-            const now = Date.now();
-            
-            // Optimisation: Réduire drastiquement la fréquence de synchronisation
-            if (previousState !== currentState) {
-                // L'état a changé, diffuser aux clients avec throttling agressif
-                if (!this.lastBroadcast || now - this.lastBroadcast > 200) { // Max 5 fois par seconde au lieu de 10
-                    this.multiplayerManager.broadcastGameState();
-                    this.lastBroadcast = now;
-                }
-            }
-            
-            // Synchronisation forcée périodique en arrière-plan (réduite)
-            if (document.visibilityState !== 'visible') {
-                if (!this.lastBackgroundSync || now - this.lastBackgroundSync > 2000) { // Toutes les 2 secondes au lieu d'1
-                    this.multiplayerManager.broadcastGameState();
-                    this.lastBackgroundSync = now;
-                }
-            }
+        if (!this.isMultiplayer) {
+            this.updateAI();
         }
+        
+        // NOUVEAU: Plus de synchronisation d'état automatique
+        // Chaque joueur gère son état localement
+        // Les actions sont synchronisées via sendAction()
     }
 
     getAISettings() {
@@ -1318,13 +1312,29 @@ class Game {
     }
 
     checkGameOver() {
-        const playerBuildings = this.buildings.filter(b => b.owner === 'player').length;
-        const enemyBuildings = this.buildings.filter(b => b.owner !== 'player' && b.owner !== 'neutral').length;
+        // CORRECTION: Utiliser le propriétaire du joueur local
+        const localPlayerOwner = this.getLocalPlayerOwner();
+        const myBuildings = this.buildings.filter(b => b.owner === localPlayerOwner).length;
         
-        if (playerBuildings === 0) {
+        // En multijoueur, vérifier seulement la défaite (plus de bâtiments)
+        if (myBuildings === 0) {
             this.endGame('Défaite!', 'Les ennemis ont conquis tous vos bâtiments.');
-        } else if (enemyBuildings === 0) {
-            this.endGame('Victoire!', 'Vous avez conquis tous les bâtiments ennemis!');
+            return;
+        }
+        
+        // Condition de victoire différente selon le mode
+        if (this.isMultiplayer) {
+            // En multijoueur: victoire si on contrôle tous les bâtiments non-neutres
+            const totalNonNeutralBuildings = this.buildings.filter(b => b.owner !== 'neutral').length;
+            if (myBuildings === totalNonNeutralBuildings) {
+                this.endGame('Victoire!', 'Vous contrôlez tous les territoires!');
+            }
+        } else {
+            // En solo: victoire si plus d'ennemis IA
+            const enemyBuildings = this.buildings.filter(b => b.owner !== localPlayerOwner && b.owner !== 'neutral').length;
+            if (enemyBuildings === 0) {
+                this.endGame('Victoire!', 'Vous avez conquis tous les bâtiments ennemis!');
+            }
         }
     }
 
@@ -1855,22 +1865,80 @@ class Game {
 
     gameLoop() {
         if (this.gameStarted && this.canvas && this.ctx) {
+            // NOUVEAU: Tous les joueurs font update + draw
+            // Les clients peuvent interagir localement, l'hôte synchronise
             this.update();
             this.draw();
+            
+            // Debug multijoueur
+            if (this.isMultiplayer) {
+                this.updateMultiplayerDebug();
+            }
         }
         
-        // Solution plus simple et fiable sans Web Worker
         if (document.visibilityState === 'visible') {
             requestAnimationFrame(() => this.gameLoop());
         } else {
-            // Mode arrière-plan : utiliser setInterval fixe pour éviter le throttling
             this.backgroundTimer = setTimeout(() => {
                 if (this.gameStarted) {
-                    this.update(); // Continuer la logique même en arrière-plan
+                    this.update();
                 }
                 this.gameLoop();
-            }, 33); // ~30 FPS fixe
+            }, 33);
         }
+    }
+    
+    updateMultiplayerDebug() {
+        const debugPanel = document.getElementById('multiplayerDebug');
+        if (!debugPanel) return;
+        
+        // Afficher le panneau en mode multijoueur
+        debugPanel.style.display = 'block';
+        
+        // Calculer les FPS
+        const now = Date.now();
+        if (!this.lastFrameTime) {
+            this.lastFrameTime = now;
+            this.frameCount = 0;
+        }
+        this.frameCount++;
+        
+        if (now - this.lastFrameTime >= 1000) {
+            const fps = Math.round(this.frameCount * 1000 / (now - this.lastFrameTime));
+            document.getElementById('debugFPS').textContent = fps;
+            this.frameCount = 0;
+            this.lastFrameTime = now;
+        }
+        
+        // Informations de debug
+        document.getElementById('debugMode').textContent = this.multiplayerManager?.isHost ? 'Hôte' : 'Client';
+        document.getElementById('debugPlayer').textContent = `${this.getLocalPlayerOwner()} (Index: ${this.localPlayerIndex})`;
+        document.getElementById('debugState').textContent = this.gameStarted ? 'En jeu' : 'En attente';
+        document.getElementById('debugCanvas').textContent = `${this.canvas.width}x${this.canvas.height}`;
+    }
+    
+    updateClientSideOnly() {
+        // Version allégée de update() pour les clients multijoueur
+        // Ne met à jour que les éléments visuels et l'interface
+        
+        if (this.gameOver) return;
+        
+        // Mettre à jour seulement l'interface et les animations visuelles
+        this.updateUI();
+        
+        // Mettre à jour les animations des groupes d'unités (pour la fluidité visuelle)
+        this.unitGroups.forEach(group => {
+            if (group.sprite && group.sprite.frames) {
+                group.updateAnimation();
+            }
+        });
+        
+        // Mettre à jour les animations des bâtiments
+        this.buildings.forEach(building => {
+            if (building.sprite && building.sprite.frames) {
+                building.updateAnimation();
+            }
+        });
     }
     
     setupVisibilityHandlers() {
@@ -2073,14 +2141,30 @@ class Game {
         console.log(`Joueur local sera: ${this.getPlayerOwner(playerIndex)}`);
         
         if (networkGameState) {
-            // Recevoir l'état initial du réseau (pour les clients)
+            // NOUVEAU: Clients - Charger l'état avec vérifications
+            console.log('Client: Chargement de l\'état initial reçu');
             this.networkGameState = networkGameState;
+            
+            // S'assurer que le canvas est prêt
+            if (!this.canvas || !this.ctx) {
+                console.error('Canvas non prêt lors de l\'initialisation multijoueur!');
+                this.initializeCanvas();
+            }
+            
+            // Charger l'état et démarrer
             this.loadGameStateFromNetwork(networkGameState);
+            this.gameStarted = true;
+            this.gameStartTime = Date.now();
+            
+            // Démarrer la boucle si nécessaire
+            if (!this.gameLoopStarted) {
+                this.gameLoopStarted = true;
+                this.gameLoop();
+            }
         } else {
-            // Créer un nouvel état de jeu (pour l'hôte)
-            // Utiliser le nombre réel de joueurs du lobby
+            // Hôte - Créer un nouvel état
             const playerCount = realPlayerCount || this.multiplayerManager.connections.size + 1;
-            console.log(`Initialisation multijoueur avec ${playerCount} joueurs réels`);
+            console.log(`Hôte: Initialisation avec ${playerCount} joueurs`);
             this.startGame(playerCount);
         }
         
@@ -2161,11 +2245,9 @@ class Game {
     }
     
     updateFromNetworkState(networkGameState) {
-        // Mettre à jour l'état local avec l'état reçu du réseau
+        // NOUVEAU: Système simplifié - plus de synchronisation d'état
+        // Les actions sont synchronisées directement via handlePlayerAction
         this.networkGameState = networkGameState;
-        
-        // IMPORTANT: Préserver les sélections locales lors des mises à jour réseau
-        this.updateGameStatePreservingLocalState(networkGameState);
     }
     
     updateGameStatePreservingLocalState(gameState) {
@@ -2261,56 +2343,80 @@ class Game {
     }
     
     loadGameStateFromNetwork(gameState) {
-        console.log('Chargement de l\'état de jeu depuis le réseau:', gameState);
+        console.log('Chargement de l\'état de jeu depuis le réseau');
         
-        // Ajuster la taille du canvas si nécessaire
-        if (gameState.canvasWidth && gameState.canvasHeight) {
-            this.canvas.width = gameState.canvasWidth;
-            this.canvas.height = gameState.canvasHeight;
+        // NOUVEAU: Vérification et initialisation robuste
+        try {
+            // Ajuster la taille du canvas
+            if (gameState.canvasWidth && gameState.canvasHeight) {
+                this.canvas.width = gameState.canvasWidth;
+                this.canvas.height = gameState.canvasHeight;
+                this.setupCanvas(); // Reconfigurer le canvas
+            }
+            
+            // Charger les bâtiments
+            this.buildings = [];
+            if (gameState.buildings && Array.isArray(gameState.buildings)) {
+                this.buildings = gameState.buildings.map(buildingData => {
+                    const building = new Building(
+                        buildingData.x, 
+                        buildingData.y, 
+                        buildingData.owner, 
+                        buildingData.units
+                    );
+                    building.maxUnits = buildingData.maxUnits || 100;
+                    building.productionRate = buildingData.productionRate || 1;
+                    building.lastProduction = Date.now(); // Réinitialiser pour éviter les problèmes
+                    building.selected = false; // Les sélections sont toujours locales
+                    return building;
+                });
+                console.log(`${this.buildings.length} bâtiments chargés`);
+            }
+            
+            // Charger les groupes d'unités
+            this.unitGroups = [];
+            if (gameState.unitGroups && Array.isArray(gameState.unitGroups)) {
+                gameState.unitGroups.forEach(groupData => {
+                    try {
+                        // Trouver les vrais bâtiments
+                        const sourceBuilding = this.buildings.find(b => 
+                            Math.abs(b.x - groupData.startX) < 1 && Math.abs(b.y - groupData.startY) < 1
+                        );
+                        const targetBuilding = this.buildings.find(b => 
+                            Math.abs(b.x - groupData.targetX) < 1 && Math.abs(b.y - groupData.targetY) < 1
+                        );
+                        
+                        if (sourceBuilding && targetBuilding) {
+                            const group = new UnitGroup(
+                                sourceBuilding, 
+                                targetBuilding, 
+                                groupData.units, 
+                                groupData.owner
+                            );
+                            group.x = groupData.x;
+                            group.y = groupData.y;
+                            group.progress = groupData.progress || 0;
+                            this.unitGroups.push(group);
+                        }
+                    } catch (err) {
+                        console.error('Erreur chargement groupe:', err);
+                    }
+                });
+                console.log(`${this.unitGroups.length} groupes d'unités chargés`);
+            }
+            
+            // Réinitialiser l'état local
+            this.selectedBuildings = [];
+            this.targetBuilding = null;
+            this.gameOver = false;
+            
+            console.log('État de jeu chargé avec succès depuis le réseau');
+        } catch (error) {
+            console.error('Erreur lors du chargement de l\'état réseau:', error);
+            // En cas d'erreur, initialiser avec des valeurs par défaut
+            this.buildings = [];
+            this.unitGroups = [];
         }
-        
-        // Charger les bâtiments
-        this.buildings = gameState.buildings.map(buildingData => {
-            const building = new Building(buildingData.x, buildingData.y, buildingData.owner, buildingData.units);
-            // PAS de synchronisation des sélections - elles restent locales
-            building.selected = false; // Toujours false depuis le réseau
-            building.maxUnits = buildingData.maxUnits;
-            building.productionRate = buildingData.productionRate;
-            building.lastProduction = buildingData.lastProduction;
-            return building;
-        });
-        
-        // Charger les groupes d'unités
-        this.unitGroups = gameState.unitGroups.map(groupData => {
-            // Créer des objets source et target temporaires
-            const sourceObj = { x: groupData.startX, y: groupData.startY };
-            const targetObj = { x: groupData.targetX, y: groupData.targetY };
-            
-            const group = new UnitGroup(sourceObj, targetObj, groupData.units, groupData.owner);
-            group.x = groupData.x;
-            group.y = groupData.y;
-            group.progress = groupData.progress || 0;
-            group.speed = groupData.speed || 30;
-            group.lastUpdate = groupData.lastUpdate || Date.now();
-            
-            // S'assurer que le sprite est chargé
-            group.loadSprite();
-            
-            console.log('Groupe d\'unités créé depuis le réseau:', {
-                units: group.units,
-                owner: group.owner,
-                x: group.x,
-                y: group.y,
-                from: `${groupData.startX},${groupData.startY}`,
-                to: `${groupData.targetX},${groupData.targetY}`
-            });
-            
-            return group;
-        });
-        
-        // État du jeu
-        this.gameOver = gameState.gameOver;
-        this.sendPercentage = gameState.sendPercentage;
         this.gameStarted = gameState.gameStarted || true;
         
         // S'assurer que le terrain est chargé
@@ -2498,6 +2604,7 @@ class Game {
         // Mettre à jour l'affichage du profil dans l'interface
         const profileName = document.getElementById('profileName');
         const profileAvatar = document.getElementById('profileAvatar');
+        const profileCloudStatus = document.getElementById('profileCloudStatus');
         
         if (profileName) {
             profileName.textContent = this.playerProfile.name;
@@ -2505,6 +2612,17 @@ class Game {
         
         if (profileAvatar) {
             profileAvatar.textContent = this.playerProfile.avatar;
+        }
+        
+        if (profileCloudStatus) {
+            // Mettre à jour le status basé sur la connexion cloud
+            if (this.neonClient && this.neonClient.isLoggedIn()) {
+                profileCloudStatus.textContent = 'Cloud';
+                profileCloudStatus.style.color = 'var(--success)';
+            } else {
+                profileCloudStatus.textContent = 'Local';
+                profileCloudStatus.style.color = 'var(--primary)';
+            }
         }
     }
     
@@ -2569,10 +2687,6 @@ class Game {
         };
         
         // Gestionnaires d'événements
-        if (profileCard) {
-            profileCard.addEventListener('click', openProfileModal);
-        }
-        
         if (profileEditBtn) {
             profileEditBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -3037,6 +3151,31 @@ class Game {
             }
         } else {
             console.log('Score sauvegardé localement uniquement');
+        }
+    }
+
+    setupLeaderboardListeners() {
+        const showLeaderboardBtn = document.getElementById('showLeaderboardBtn');
+        const backFromLeaderboardBtn = document.getElementById('backFromLeaderboardBtn');
+        
+        if (showLeaderboardBtn) {
+            showLeaderboardBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (this.leaderboardManager) {
+                    this.leaderboardManager.showLeaderboardScreen();
+                }
+            });
+        }
+        
+        if (backFromLeaderboardBtn) {
+            backFromLeaderboardBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (this.leaderboardManager) {
+                    this.leaderboardManager.hideLeaderboardScreen();
+                }
+            });
         }
     }
 
