@@ -1,4 +1,4 @@
-import { buildingAssets } from '../assets.js';
+import { buildingAssets } from '../assets-optimized.js';
 
 export class Building {
     constructor(x, y, owner = 'neutral', units = null) {

@@ -1,4 +1,4 @@
-import { unitAssets, effectAssets } from '../assets.js';
+import { unitAssets, effectAssets } from '../assets-optimized.js';
 
 export class UnitGroup {
     constructor(source, target, units, owner) {

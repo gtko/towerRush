@@ -3,7 +3,7 @@ import { UnitGroup } from '../entities/UnitGroup.js';
 import { MultiplayerManager } from '../multiplayer/MultiplayerManager.js';
 import { NeonClient } from '../database/NeonClient.js';
 import { LeaderboardManager } from './LeaderboardManager.js';
-import { decorationAssets, otherAssets, preloadAssets } from '../assets.js';
+import { decorationAssets, otherAssets, preloadAssets, getFallbackUrl } from '../assets-optimized.js';
 
 export class Game {
     constructor() {

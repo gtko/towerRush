@@ -6,7 +6,7 @@
 
 ## 🎮 Jouez maintenant !
 
-[![Jouer maintenant](https://img.shields.io/badge/🎮_Jouer_maintenant-blue?style=for-the-badge)](https://gtko.github.io/towerRush/)
+[![Jouer maintenant](https://img.shields.io/badge/🎮_Jouer_maintenant-blue?style=for-the-badge)](https://tower-rush.lol)
 [![Ouvrir dans Codespace](https://img.shields.io/badge/🚀_Ouvrir_dans_Codespace-green?style=for-the-badge)](https://github.com/codespaces/new?hide_repo_select=true&ref=master&repo=gtko/towerRush)
 [![Télécharger](https://img.shields.io/badge/📦_Télécharger-orange?style=for-the-badge)](https://github.com/gtko/towerRush/releases/latest)
 
@@ -61,7 +61,7 @@ Dominez le champ de bataille en conquérant tous les bâtiments ennemis ! Chaque
 
 ### 🎮 **Pour Joueurs**
 **Option 1 - Jouer en ligne :**
-[![Jouer maintenant](https://img.shields.io/badge/🎮_Jouer_maintenant-blue?style=flat-square)](https://gtko.github.io/towerRush/)
+[![Jouer maintenant](https://img.shields.io/badge/🎮_Jouer_maintenant-blue?style=flat-square)](https://tower-rush.lol)
 
 **Option 2 - Télécharger :**
 1. [Téléchargez la dernière version](https://github.com/gtko/towerRush/releases/latest)
@@ -282,7 +282,7 @@ Ce projet est sous licence **MIT** - voir le fichier [LICENSE](LICENSE) pour plu
 
 ### 🎮 **Prêt pour la bataille ?**
 
-[![Jouer maintenant](https://img.shields.io/badge/🏰_JOUER_MAINTENANT-success?style=for-the-badge&logo=gamepad)](https://gtko.github.io/towerRush/)
+[![Jouer maintenant](https://img.shields.io/badge/🏰_JOUER_MAINTENANT-success?style=for-the-badge&logo=gamepad)](https://tower-rush.lol)
 
 *Fait avec ❤️ pour la communauté des joueurs RTS*
 

@@ -1,6 +1,6 @@
 import './modern-style.css';
 import { Game } from './core/Game.js';
-import { preloadAssets } from './assets.js';
+import { preloadAssets } from './assets-optimized.js';
 
 let game;
 window.addEventListener('load', async () => {

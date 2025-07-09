@@ -25,7 +25,10 @@
       "Bash(npm init:*)",
       "Bash(npm install:*)",
       "Bash(npm run dev:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run optimize-images:*)",
+      "Bash(pkill:*)"
     ],
     "deny": []
   }

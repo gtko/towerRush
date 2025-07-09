@@ -276,8 +276,6 @@ jobs:
         fi
         
         cat > release_notes.md << EOF
-        ## 🎮 Tower Rush ${NEW_VERSION}
-        
         ### 📊 Statistiques
         - **${COMMITS_COUNT} commits** depuis la dernière version
         - **Dernière version** : ${LATEST_TAG:-"Première release"}
@@ -303,7 +301,7 @@ jobs:
         
         ### 🌐 Jouer en ligne
         
-        [**🎮 Jouer maintenant**](https://gtko.github.io/towerRush/)
+        [**🎮 Jouer maintenant**](https://tower-rush.lol)
         
         ### 🐛 Signaler un problème
         
