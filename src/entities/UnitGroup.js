@@ -1,4 +1,6 @@
-class UnitGroup {
+import { unitAssets, effectAssets } from '../assets.js';
+
+export class UnitGroup {
     constructor(source, target, units, owner) {
         this.source = source;
         this.target = target;
@@ -54,10 +56,10 @@ class UnitGroup {
     loadEffectSprites() {
         // Charger les sprites d'effets
         this.effectSprites.fire = new Image();
-        this.effectSprites.fire.src = './assets/Effects/Fire/Fire.png';
+        this.effectSprites.fire.src = effectAssets.fire;
         
         this.effectSprites.explosion = new Image();
-        this.effectSprites.explosion.src = './assets/Effects/Explosion/Explosions.png';
+        this.effectSprites.explosion.src = effectAssets.explosion;
     }
     
     getUnitFolder() {
@@ -74,13 +76,12 @@ class UnitGroup {
     loadSprite() {
         this.sprite = new Image();
         this.spriteLoaded = false;
-        let path = '';
         
-        const unitFolder = this.getUnitFolder();
-        if (unitFolder === 'Stone') {
-            path = `./assets/Factions/Knights/Troops/Warrior/${unitFolder}/Warrior_${unitFolder}.png`;
-        } else {
-            path = `./assets/Factions/Knights/Troops/Warrior/${unitFolder}/Warrior_${unitFolder}.png`;
+        const assetUrl = unitAssets[this.owner];
+        
+        if (!assetUrl) {
+            console.error(`No asset found for owner: ${this.owner}`);
+            return;
         }
         
         this.sprite.onload = () => {
@@ -104,11 +105,11 @@ class UnitGroup {
             console.log(`Sprite loaded: ${this.sprite.naturalWidth}x${this.sprite.naturalHeight}, frame: ${this.frameWidth}x${this.frameHeight}`);
         };
         this.sprite.onerror = () => {
-            console.log(`Failed to load unit sprite: ${path}`);
+            console.log(`Failed to load unit sprite: ${assetUrl}`);
             this.spriteLoaded = false;
         };
         
-        this.sprite.src = path;
+        this.sprite.src = assetUrl;
     }
     
 

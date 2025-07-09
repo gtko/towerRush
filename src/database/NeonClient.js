@@ -3,7 +3,7 @@
  * Gère les profils, scores et authentification
  */
 
-class NeonClient {
+export class NeonClient {
     constructor() {
         this.sql = null;
         this.isInitialized = false;

@@ -39,3 +39,9 @@ dist/
 build/
 *.min.js
 *.min.css
+
+# Node modules
+node_modules/
+
+# Vite
+.vite/

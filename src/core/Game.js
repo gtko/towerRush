@@ -1,4 +1,11 @@
-class Game {
+import { Building } from '../entities/Building.js';
+import { UnitGroup } from '../entities/UnitGroup.js';
+import { MultiplayerManager } from '../multiplayer/MultiplayerManager.js';
+import { NeonClient } from '../database/NeonClient.js';
+import { LeaderboardManager } from './LeaderboardManager.js';
+import { decorationAssets, otherAssets, preloadAssets } from '../assets.js';
+
+export class Game {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         if (!this.canvas) {
@@ -284,13 +291,13 @@ class Game {
             
             switch(deco.type) {
                 case 'tree':
-                    deco.sprite.src = './assets/Resources/Trees/Tree.png';
+                    deco.sprite.src = decorationAssets.tree;
                     break;
                 case 'rock':
-                    deco.sprite.src = './assets/Terrain/Water/Rocks/Rocks_01.png';
+                    deco.sprite.src = decorationAssets.rock;
                     break;
                 case 'bush':
-                    deco.sprite.src = './assets/Decorations/Bushes/Bushe1.png';
+                    deco.sprite.src = decorationAssets.bush;
                     break;
             }
         });
@@ -2001,13 +2008,13 @@ class Game {
     
     initAudio() {
         // Liste des musiques disponibles
-        this.musicTracks = ['medieval.mp3', 'irish.mp3'];
+        this.musicTracks = ['medieval', 'irish'];
         
         // Choisir une musique aléatoire
         const randomTrack = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
         
         // Créer l'élément audio pour la musique de fond
-        this.backgroundMusic = new Audio(`./assets/Sounds/${randomTrack}`);
+        this.backgroundMusic = new Audio(otherAssets.music[randomTrack]);
         this.backgroundMusic.loop = true;
         this.backgroundMusic.volume = 0.3; // Volume modéré
         
@@ -2053,8 +2060,15 @@ class Game {
         // Choisir une nouvelle musique aléatoire
         const randomTrack = this.musicTracks[Math.floor(Math.random() * this.musicTracks.length)];
         
+        // Utiliser les assets importés depuis otherAssets
+        const musicUrl = otherAssets.music[randomTrack];
+        if (!musicUrl) {
+            console.error(`Music track "${randomTrack}" not found in imported assets`);
+            return;
+        }
+        
         // Créer un nouvel élément audio
-        const newMusic = new Audio(`./assets/Sounds/${randomTrack}`);
+        const newMusic = new Audio(musicUrl);
         newMusic.loop = true;
         newMusic.volume = 0.3;
         

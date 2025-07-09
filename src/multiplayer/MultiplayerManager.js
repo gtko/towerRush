@@ -3,7 +3,7 @@
  * Utilise PeerJS pour simplifier les connexions P2P
  */
 
-class MultiplayerManager {
+export class MultiplayerManager {
     constructor(game) {
         this.game = game;
         this.peer = null;

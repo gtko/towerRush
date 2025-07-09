@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tower Rush</title>
-    <link rel="stylesheet" href="modern-style.css">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#FFD700">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <script type="module" src="/src/game.js"></script>
 </head>
 <body>
     <div class="menu-screen" id="menuScreen">
@@ -467,30 +467,13 @@
         </div>
     </div>
 
-    <!-- Core classes -->
-    <script src="src/entities/Building.js"></script>
-    <script src="src/entities/UnitGroup.js"></script>
-    <script src="src/multiplayer/MultiplayerManager.js"></script>
-    <script src="src/database/NeonClient.js"></script>
-    <script src="src/core/LeaderboardManager.js"></script>
-    <script src="src/core/Game.js"></script>
-    
-    <script>
-        // Démarrer le jeu
-        let game;
-        window.addEventListener('load', () => {
-            // Initialiser le jeu directement
-            game = new Game();
-            // Rendre le jeu accessible globalement pour le leaderboard
-            window.game = game;
-        });
-    </script>
+    <!-- Scripts will be loaded by Vite -->
     
     <script>
         // PWA uniquement si servi via HTTP/HTTPS
         if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
+                navigator.serviceWorker.register('/sw.js')
                     .then(registration => {
                         console.log('Service Worker enregistré:', registration.scope);
                     })

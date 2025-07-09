@@ -1,4 +1,6 @@
-class Building {
+import { buildingAssets } from '../assets.js';
+
+export class Building {
     constructor(x, y, owner = 'neutral', units = null) {
         this.x = x;
         this.y = y;
@@ -57,27 +59,30 @@ class Building {
             this.sprite = new Image();
             this.spriteLoaded = false;
             
-            let path = '';
-            
             const buildingFolder = this.getBuildingFolder();
+            const assets = buildingAssets[buildingFolder];
             
-            switch(newType) {
-                case 'house1': path = `./assets/Buildings/${buildingFolder}/House1.png`; break;
-                case 'house2': path = `./assets/Buildings/${buildingFolder}/House2.png`; break;
-                case 'house3': path = `./assets/Buildings/${buildingFolder}/House3.png`; break;
-                case 'tower': path = `./assets/Buildings/${buildingFolder}/Tower.png`; break;
-                case 'castle': path = `./assets/Buildings/${buildingFolder}/Castle.png`; break;
+            if (!assets) {
+                console.error(`No assets found for building folder: ${buildingFolder}`);
+                return;
+            }
+            
+            const assetUrl = assets[newType];
+            
+            if (!assetUrl) {
+                console.error(`No asset found for building type: ${newType}`);
+                return;
             }
             
             this.sprite.onload = () => {
                 this.spriteLoaded = true;
             };
             this.sprite.onerror = () => {
-                console.log(`Failed to load building sprite: ${path}`);
+                console.log(`Failed to load building sprite: ${assetUrl}`);
                 this.spriteLoaded = false;
             };
             
-            this.sprite.src = path;
+            this.sprite.src = assetUrl;
         }
     }
 

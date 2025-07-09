@@ -2,7 +2,7 @@
  * LeaderboardManager - Gère l'affichage et la logique du leaderboard
  * Intègre avec NeonClient pour les données cloud et localStorage pour les données locales
  */
-class LeaderboardManager {
+export class LeaderboardManager {
     constructor(neonClient) {
         this.neonClient = neonClient;
         this.localStats = this.loadLocalStats();
